@@ -1,0 +1,183 @@
+[
+ {
+  "leetcode_id": 2407,
+  "difficulty": "Hard",
+  "n_cases": 15,
+  "n_valid": 15,
+  "n_mismatch": 1,
+  "mismatch_on_original_tests": 0,
+  "example": {
+   "input": {
+    "nums": [
+     65,
+     18,
+     37,
+     18
+    ],
+    "k": 2
+   },
+   "python": 1,
+   "q": 2
+  }
+ },
+ {
+  "leetcode_id": 1426,
+  "difficulty": "Easy",
+  "n_cases": 15,
+  "n_valid": 15,
+  "n_mismatch": 1,
+  "mismatch_on_original_tests": 0,
+  "example": {
+   "input": {
+    "arr": [
+     7,
+     9,
+     5,
+     6,
+     5
+    ]
+   },
+   "python": 3,
+   "q": 5
+  }
+ },
+ {
+  "leetcode_id": 1989,
+  "difficulty": "Medium",
+  "n_cases": 15,
+  "n_valid": 15,
+  "n_mismatch": 4,
+  "mismatch_on_original_tests": 0,
+  "example": {
+   "input": {
+    "team": [
+     1,
+     0,
+     1
+    ],
+    "dist": 1
+   },
+   "python": 1,
+   "q": 2
+  }
+ },
+ {
+  "leetcode_id": 1826,
+  "difficulty": "Easy",
+  "n_cases": 15,
+  "n_valid": 15,
+  "n_mismatch": 0,
+  "mismatch_on_original_tests": 0,
+  "example": null
+ },
+ {
+  "leetcode_id": 2568,
+  "difficulty": "Medium",
+  "n_cases": 15,
+  "n_valid": 15,
+  "n_mismatch": 0,
+  "mismatch_on_original_tests": 0,
+  "example": null
+ },
+ {
+  "leetcode_id": 2718,
+  "difficulty": "Medium",
+  "n_cases": 15,
+  "n_valid": 15,
+  "n_mismatch": 10,
+  "mismatch_on_original_tests": 0,
+  "example": {
+   "input": {
+    "n": 2,
+    "queries": [
+     [
+      20,
+      18,
+      12
+     ],
+     [
+      20,
+      2,
+      2
+     ]
+    ]
+   },
+   "python": 28,
+   "q": 0
+  }
+ },
+ {
+  "leetcode_id": 2592,
+  "difficulty": "Medium",
+  "n_cases": 15,
+  "n_valid": 15,
+  "n_mismatch": 0,
+  "mismatch_on_original_tests": 0,
+  "example": null
+ },
+ {
+  "leetcode_id": 2921,
+  "difficulty": "Hard",
+  "n_cases": 15,
+  "n_valid": 14,
+  "n_mismatch": 0,
+  "mismatch_on_original_tests": 0,
+  "example": null
+ },
+ {
+  "leetcode_id": 2839,
+  "difficulty": "Easy",
+  "n_cases": 15,
+  "n_valid": 15,
+  "n_mismatch": 0,
+  "mismatch_on_original_tests": 0,
+  "example": null
+ },
+ {
+  "leetcode_id": 2440,
+  "difficulty": "Hard",
+  "n_cases": 15,
+  "n_valid": 10,
+  "n_mismatch": 4,
+  "mismatch_on_original_tests": 0,
+  "example": {
+   "input": {
+    "nums": [
+     2,
+     9,
+     10
+    ],
+    "edges": [
+     [
+      5,
+      3
+     ],
+     [
+      3,
+      1
+     ]
+    ]
+   },
+   "python": 0,
+   "q": 2
+  }
+ },
+ {
+  "leetcode_id": 2826,
+  "difficulty": "Medium",
+  "n_cases": 15,
+  "n_valid": 15,
+  "n_mismatch": 0,
+  "mismatch_on_original_tests": 0,
+  "example": null
+ },
+ {
+  "leetcode_id": 1217,
+  "difficulty": "Easy",
+  "n_cases": 15,
+  "n_valid": 15,
+  "n_mismatch": 0,
+  "mismatch_on_original_tests": 0,
+  "example": null
+ }
+]

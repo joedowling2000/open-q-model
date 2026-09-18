@@ -1,0 +1,140 @@
+diff --git a/src/evaluation/q_python_executor.py b/src/evaluation/q_python_executor.py
+index a64f355..8b338cb 100644
+--- a/src/evaluation/q_python_executor.py
++++ b/src/evaluation/q_python_executor.py
+@@ -16,7 +16,10 @@ import platform
+ try:
+     if "QHOME" not in os.environ:
+         import pykx as kx
+-        del os.environ['QHOME']
++        # pykx only sets QHOME when it finds an installation, so this has to be
++        # conditional: an unconditional del raises KeyError at import time and
++        # takes the whole CLI down, including generation, which needs no q.
++        os.environ.pop("QHOME", None)
+         os.environ["PATH"] += os.pathsep + "$HOME/.kx/bin/"
+     else:
+ 
+@@ -25,22 +28,32 @@ try:
+         # Restore QHOME if PyKX modified it
+         os.environ["QHOME"] = original_qhome
+ 
+-        # Add platform-appropriate q executable to PATH
++        # Add platform-appropriate q executable to PATH.
++        #
++        # Two layouts exist. KDB-X installs a single `bin/q` under QHOME, while
++        # classic kdb+ uses a per-architecture directory. 64-bit ARM is `l64arm`
++        # on Linux and `m64` on macOS — mapping any non-x86_64 Linux to `l32`
++        # (as this did) points at a 32-bit directory that does not exist on an
++        # ARM64 box, so q is never found.
+         system = platform.system().lower()
++        machine = platform.machine().lower()
++        candidates = [os.path.join(original_qhome, "bin")]  # KDB-X
+         if system == "linux":
+-            arch = "l64" if platform.machine() in ("x86_64", "amd64") else "l32"
+-            q_bin_path = os.path.join(original_qhome, arch)
+-        elif system == "darwin":  # macOS
+-            arch = "m64" if platform.machine() == "arm64" else "m64"
+-            q_bin_path = os.path.join(original_qhome, arch)
++            candidates.append(
++                os.path.join(original_qhome,
++                             "l64" if machine in ("x86_64", "amd64") else "l64arm")
++            )
++        elif system == "darwin":
++            candidates.append(os.path.join(original_qhome, "m64"))
+         elif system == "windows":
+-            arch = "w64"
+-            q_bin_path = os.path.join(original_qhome, arch)
++            candidates.append(os.path.join(original_qhome, "w64"))
+         else:
+-            q_bin_path = os.path.join(original_qhome, "l64")  # fallback
++            candidates.append(os.path.join(original_qhome, "l64"))
+ 
+-        if os.path.exists(q_bin_path):
+-            os.environ["PATH"] += os.pathsep + q_bin_path
++        for q_bin_path in candidates:
++            if os.path.exists(q_bin_path):
++                os.environ["PATH"] += os.pathsep + q_bin_path
++                break
+ except ImportError:
+     raise ImportError("pykx is required for Q code execution")
+ 
+diff --git a/src/models/factory.py b/src/models/factory.py
+index 0214487..26782ed 100644
+--- a/src/models/factory.py
++++ b/src/models/factory.py
+@@ -6,7 +6,6 @@ from typing import Any
+ from .base import BaseModel
+ from .litellm_model import LiteLLMModel
+ from .huggingface_model import HuggingFaceModel
+-from .vllm_model import VLLMModel
+ 
+ 
+ def create_model(model_name: str, model_type: str = "auto", **kwargs: Any) -> BaseModel:
+@@ -32,6 +31,11 @@ def create_model(model_name: str, model_type: str = "auto", **kwargs: Any) -> Ba
+     elif model_type == "litellm":
+         return LiteLLMModel(model_name, **kwargs)
+     elif model_type == "vllm":
++        # Imported lazily: vLLM is a heavy, platform-specific dependency, and
++        # importing it at module load makes the API and HuggingFace backends
++        # unusable anywhere vLLM will not install (e.g. aarch64).
++        from .vllm_model import VLLMModel
++
+         return VLLMModel(model_name, **kwargs)
+     else:
+         raise ValueError(f"Unsupported model type: {model_type}")
+diff --git a/src/models/model_config.py b/src/models/model_config.py
+index 8c80f79..dce0b83 100644
+--- a/src/models/model_config.py
++++ b/src/models/model_config.py
+@@ -1,7 +1,8 @@
+ """Unified model configuration for LiteLLM models."""
+ 
++import os
+ import secrets
+-from dataclasses import dataclass
++from dataclasses import dataclass, replace
+ from typing import Dict, Any, List
+ from src.constants import (
+     DEFAULT_MAX_THINKING_TOKENS,
+@@ -138,7 +139,16 @@ def get_model_config(model_name: str) -> ModelConfig:
+         ModelConfig with all model-specific settings
+     """
+     model_type = _detect_model_type(model_name)
+-    return MODEL_CONFIGS[model_type]
++    config = MODEL_CONFIGS[model_type]
++
++    # A self-hosted model served over an OpenAI-compatible endpoint lands in
++    # "unknown", whose max_concurrent=1 serialises the whole run: one problem in
++    # flight, so a local server with many slots sits mostly idle. There is no
++    # remote rate limit to respect here, so allow an override.
++    override = os.environ.get("QEVAL_MAX_CONCURRENT")
++    if override:
++        config = replace(config, max_concurrent=int(override), rate_limit_delay=0.0)
++    return config
+ 
+ 
+ def generate_unique_seed() -> int:
+diff --git a/src/utils/hardware_profiler.py b/src/utils/hardware_profiler.py
+index 0de7c69..8217ccd 100644
+--- a/src/utils/hardware_profiler.py
++++ b/src/utils/hardware_profiler.py
+@@ -9,7 +9,6 @@ from pathlib import Path
+ import torch
+ import psutil
+ import GPUtil
+-from vllm import LLM, SamplingParams
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -193,6 +192,11 @@ class HardwareProfiler:
+         }
+ 
+         try:
++            # Imported here rather than at module scope: profiling is the only
++            # thing that needs vLLM, and a top-level import breaks the CLI on
++            # platforms where vLLM will not install.
++            from vllm import LLM, SamplingParams
++
+             # Initialize model with this configuration
+             llm = LLM(
+                 model=model_name,

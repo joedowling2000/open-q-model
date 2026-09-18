@@ -1,0 +1,57 @@
+{
+ "files_in": 4550,
+ "files_kept": 4099,
+ "bytes_kept": 16295434,
+ "bytes_dropped": 14360622,
+ "reasons": {
+  "keep": 4099,
+  "too-few-q-signals": 357,
+  "ini/quickmacro": 43,
+  "html": 5,
+  "cjk-heavy": 10,
+  "python/js": 17,
+  "json": 19
+ },
+ "largest_drops": [
+  [
+   "jasivan/FERMAT",
+   3587401
+  ],
+  [
+   "yandifei/Free-my-WW_oldscript_and_mdPic",
+   3519961
+  ],
+  [
+   "vincent86830/LastWar_BuffBot",
+   2056949
+  ],
+  [
+   "better-4/Better4",
+   1679566
+  ],
+  [
+   "EuphonXD/War-Thunder-Rangefinder-for-Anjianjingling",
+   1042260
+  ],
+  [
+   "AvenSun/OcrKing",
+   1038550
+  ],
+  [
+   "TIBCOSoftware/resample",
+   385778
+  ],
+  [
+   "opencasestudies/ocs-ripples-ancestry",
+   284852
+  ],
+  [
+   "Swati17293/HQS",
+   134988
+  ],
+  [
+   "Ghecisss/qSim",
+   60760
+  ]
+ ]
+}

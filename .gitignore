@@ -1,0 +1,23 @@
+# Model weights and quantised copies — 95 GB, all re-creatable from the hub
+gguf/
+
+# Cloned upstream repos. The harness is vendored only as a patch set
+# (patches/), so our changes are reviewable without shipping someone else's repo.
+q-evaluation-harness/
+kx-skills/
+
+# Harvested corpus: bulky and reproducible from corpus/manifest.jsonl, which
+# records repo, path, licence and commit for every file we kept.
+corpus/raw/
+corpus/kx-docs/
+corpus/hf/
+**/*.untrimmed
+
+# Run logs: tens of MB of progress bars, no evidentiary value
+logs/
+
+# Scratch
+**/__pycache__/
+*.pyc
+*.partial
+*.tmp
