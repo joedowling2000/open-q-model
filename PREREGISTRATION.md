@@ -28,7 +28,7 @@ base model's score — and can it reach the q-specialised incumbent?
 the bootstrap CI on the difference. Verification-filtered self-generation adds
 real capability, not just style.
 
-**H2 (it closes the gap).** The trained model reaches or exceeds 37.9% — the
+**H2 (it closes the gap).** The trained model reaches or exceeds 38.4% — the
 q-specialised model's score — without using any q-specialised model's output.
 
 **H0 (it does not work).** No improvement beyond noise. The honest reading would
@@ -93,9 +93,9 @@ own entry.
 
 | Gate | Threshold | If it fails |
 |---|---|---|
-| **A — pretraining sanity** | CPT checkpoint > base 10.4%, CI on the difference excludes zero | Report; diagnose before spending GPU on SFT |
+| **A — pretraining sanity** | CPT checkpoint > base 10.2%, CI on the difference excludes zero | Report; diagnose before spending GPU on SFT |
 | **B — self-improvement (H1)** | final model > base, CI on the difference excludes zero | H0; report it as a null result |
-| **C — headline (H2)** | final pass@1 ≥ 37.9%, with the 95% CI lower bound above qqWen's point estimate | H1 without H2: "self-improvement works but does not close the gap" |
+| **C — headline (H2)** | final pass@1 ≥ 38.4%, with the 95% CI lower bound above qqWen's point estimate | H1 without H2: "self-improvement works but does not close the gap" |
 
 All three outcomes get written up. A null result here is informative: it would
 say that bootstrapping a low-resource language from a weak model does not work,

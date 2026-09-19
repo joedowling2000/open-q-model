@@ -12,9 +12,9 @@ The question: **Morgan Stanley's qqWen is the only serious open q model, built o
 
 | Phase | State |
 |---|---|
-| 0. Measure the starting line | ✅ done, 10 samples; 30-sample confirmation running |
+| 0. Measure the starting line | ✅ **done, 30 samples, validated** |
 | 1. Assemble a corpus | ✅ measured: ~17M tokens usable |
-| 2. Synthetic data pipeline | ✅ built and tested on CPU; needs GPU for generation |
+| 2. Synthetic data pipeline | 🔄 generating (self-improvement run, per pre-registration) |
 | 3. Continued pretraining | ⬜ not started |
 | 4. SFT | ⬜ not started |
 | 5. RL with execution rewards | ⬜ not started |
@@ -26,9 +26,12 @@ The question: **Morgan Stanley's qqWen is the only serious open q model, built o
 
 | Model | Pass@1 | Pass@5 | Pass@10 |
 |---|---|---|---|
-| **qqWen-32B-RL** (q-specialised, Qwen-2.5 base) | **37.9%** | 53.9% | 58.5% |
-| Qwen3.5-27B (general, 2026) | 10.4% | 19.2% | 25.6% |
-| Gemma-4-31B-it (general, 2026) | 10.2% | 15.1% | 17.7% |
+| **qqWen-32B-RL** (q-specialised, Qwen-2.5 base) | **38.4%** | 54.2% | 59.4% |
+| Qwen3.5-27B (general, 2026) | 10.2% | 18.6% | 23.6% |
+| Gemma-4-31B-it (general, 2026) | 10.1% | 15.0% | 18.0% |
+
+30 samples per problem, validated. Each model measured twice independently
+(10 then a fresh 20); the passes agree within a point.
 
 Reference, same grader: Claude Opus 4.8 one-shot **53.2%**; Opus 5 in agent mode
 **97.6%** (not comparable — iterates against a live interpreter).
@@ -38,7 +41,7 @@ the post-June-2026 grader.**
 
 **What it settles:** two generations of general-model progress bought ~nothing for
 q. Specialisation is worth 3.7x and is the whole story. The target to beat is
-37.9%, and the gap to frontier one-shot is 15 points, not 87.
+38.4%, and the gap to frontier one-shot is 15 points, not 87.
 
 ---
 
@@ -110,7 +113,7 @@ human-written code, not model output.
 GRPO as qqWen used, with KDB-X as the reward oracle (free, offline, commercial
 use permitted; 16 GB RAM, 4 secondary threads). Feasible at 4–9B; slow at 27B.
 
-**Gate:** beats 37.9% pass@1. That is the headline claim.
+**Gate:** beats 38.4% pass@1. That is the headline claim.
 
 ### Phase 6 — agent mode
 The harness only supports Claude Code and Codex CLIs. An OpenAI-compatible agent

@@ -128,29 +128,34 @@ plumbing rather than the model.
 3. **Licences stay clean**: MIT/Apache/CC-BY sources only, no GPL-3 q corpora, no
    distillation from frontier APIs whose terms forbid training competitors.
 
-## Results — 10 samples per problem, current grader, Q8_0, no tool use
+## Results — 30 samples per problem, current grader, Q8_0, no tool use
 
-| Model | Base | Pass@1 | Pass@5 | Pass@10 | distinct/1640 |
+| Model | Base | Pass@1 | Pass@5 | Pass@10 | Pass@20 |
 |---|---|---|---|---|---|
-| **qqWen-32B-RL-Reasoning** | Qwen-2.5-32B, q-specialised | **37.9%** | 53.9% | 58.5% | 1605 |
-| Qwen3.5-27B | general, 2026 | 10.4% | 19.2% | 25.6% | 1640 |
-| Gemma-4-31B-it | general, 2026 | 10.2% | 15.1% | 17.7% | 975 |
+| **qqWen-32B-RL-Reasoning** | Qwen-2.5-32B, q-specialised | **38.4%** | 54.2% | 59.4% | 64.4% |
+| Qwen3.5-27B | general, 2026 | 10.2% | 18.6% | 23.6% | 29.1% |
+| Gemma-4-31B-it | general, 2026 | 10.1% | 15.0% | 18.0% | 21.6% |
 
 All three validated: 100% non-empty, zero infrastructure errors.
+
+**Measured twice, independently.** Each model was scored on 10 samples, then on a
+fresh 20 with different seeds, then merged to 30. The passes agree:
+
+| Model | first 10 | fresh 20 | merged 30 |
+|---|---|---|---|
+| qqWen-32B-RL | 37.9% | 38.6% | **38.4%** |
+| Qwen3.5-27B | 10.4% | 10.2% | **10.2%** |
+| Gemma-4-31B-it | 10.2% | 10.1% | **10.1%** |
+
+qqWen's lead widens with more attempts (38.4% -> 64.4% at pass@20, against
+10.2% -> 29.1% for Qwen3.5): it is not only more accurate, it explores better.
 
 Reference points from KX's leaderboard (same grader): Claude Opus 4.8 one-shot
 **53.2%**; Claude Opus 5 in agent mode **97.6%**. Not directly comparable to the
 rows above — agent mode iterates against a live interpreter.
 
 **What this settles.** Two generations of general-model progress bought ~nothing
-for q: a 2026 27B and a 2026 31B both sit at ~10%, while a 2025 q-specialised
-32B scores 37.9%. Specialisation is worth ~3.7x, and it is the whole story.
+for q: a 2026 27B and a 2026 31B both sit at ~10%, while a 2025 q-specialised 32B
+scores 38.4%. Specialisation is worth ~3.8x, and it is the whole story.
 
-That is the case for the project: qqWen's pipeline applied to a *modern* base has
-room to beat 37.9%, and the gap to frontier one-shot (53.2%) is 15 points rather
-than the 87 points that agent mode implies.
-
-Caveats: 10 samples, not the leaderboard's 50 (a 30-sample pass is running);
-Q8_0 quantisation throughout, so these are not bf16 numbers; and Gemma's low
-distinct count (975) shows it repeats itself at temperature 0.8, which depresses
-its pass@10 more than its pass@1.
+Caveat: Q8_0 quantisation throughout, so these are not bf16 numbers.
