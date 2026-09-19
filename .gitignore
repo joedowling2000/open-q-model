@@ -21,3 +21,8 @@ logs/
 *.pyc
 *.partial
 *.tmp
+
+# Hand-written pipeline fixtures that happened to land in the output file.
+# Authored by a frontier model, so forbidden in training by PREREGISTRATION.md;
+# kept out of the corpus to make that impossible to get wrong.
+corpus/fixture_records_NOT_FOR_TRAINING.jsonl

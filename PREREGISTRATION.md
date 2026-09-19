@@ -147,6 +147,17 @@ the scripts, the filter statistics, and the failures — including that our own
 verification pipeline accepted a wrong solution until the discriminating-input
 check was added.
 
+## Incidents
+
+**1 — 2026-09-19: hand-written fixtures found in the corpus file.** The three
+problems used to test the pipeline's verification stages (written by a frontier
+model, and one carrying a q solution taken from Morgan Stanley's dataset) were
+written to `corpus/synthetic.jsonl`, the same file self-generation appends to.
+Both sources are forbidden in training by the lineage rule above. Caught before
+any training and before the first generated batch landed; moved to
+`corpus/fixture_records_NOT_FOR_TRAINING.jsonl` and git-ignored. The training
+corpus was empty of self-generated records at the time, so nothing was lost.
+
 ## Amendments
 
 **1 — 2026-09-19: baseline and target updated from 10-sample to 30-sample
