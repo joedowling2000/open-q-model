@@ -14,7 +14,7 @@ The question: **Morgan Stanley's qqWen is the only serious open q model, built o
 |---|---|
 | 0. Measure the starting line | ✅ **done, 30 samples, validated** |
 | 1. Assemble a corpus | ✅ measured: ~17M tokens usable |
-| 2. Synthetic data pipeline | 🔄 generating (self-improvement run, per pre-registration) |
+| 2. Synthetic data pipeline | 🔄 rebuilding as distillation from qqWen — see [GENERATION.md](GENERATION.md) and amendment 2 |
 | 3. Continued pretraining | ⬜ not started |
 | 4. SFT | ⬜ not started |
 | 5. RL with execution rewards | ⬜ not started |

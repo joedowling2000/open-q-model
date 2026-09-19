@@ -120,6 +120,10 @@ def fenced(text: str, tag: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
+class UnrepresentableInput(TypeError):
+    """An input value that cannot be faithfully expressed as a q literal."""
+
+
 def to_q_literal(value) -> str:
     if isinstance(value, bool):
         return "1b" if value else "0b"
@@ -142,7 +146,10 @@ def to_q_literal(value) -> str:
         if len(value) == 1:                    # (0) is an atom; a list needs enlist
             return f"enlist {to_q_literal(value[0])}"
         return "(" + ";".join(to_q_literal(v) for v in value) + ")"
-    raise TypeError(f"no q literal for {type(value).__name__}")
+    # No faithful q literal exists for this Python value (None being the common
+    # case). Guessing a mapping — 0N? 0n? :: ? — could make a correct solution
+    # look wrong, so the problem is skipped instead.
+    raise UnrepresentableInput(f"no q literal for {type(value).__name__}")
 
 
 def run_python(code: str, timeout: float = 30.0) -> tuple[bool, str]:
@@ -209,7 +216,7 @@ def python_reference(solution: str, inputs: list[dict]) -> list | None:
     return marker(out) if ok else None
 
 
-def q_candidate(solution: str, inputs: list[dict]) -> list | None:
+def q_candidate(solution: str, inputs: list[dict], debug: bool = False):
     """Stage 4: run the q candidate over the same inputs, results as JSON."""
     lines = [solution, "out:();"]
     for kw in inputs:
@@ -219,7 +226,7 @@ def q_candidate(solution: str, inputs: list[dict]) -> list | None:
     ok, out = run_q_script("\n".join(lines))
     raw = marker(out) if ok else None
     if raw is None:
-        return None
+        return (None, out) if debug else None
     parsed = []
     for x in raw:
         if isinstance(x, str) and x != "__error__":
@@ -229,7 +236,7 @@ def q_candidate(solution: str, inputs: list[dict]) -> list | None:
                 parsed.append({"__error__": "json"})
         else:
             parsed.append({"__error__": "q"})
-    return parsed
+    return (parsed, out) if debug else parsed
 
 
 def agrees(py, qv) -> bool:
@@ -320,14 +327,26 @@ def process_problem(spec: dict, args, benchmark: list[str], stats: dict,
         stats["inputs_too_skewed"] += 1
         return None
 
+    try:
+        to_q_literals_ok = all(to_q_literal(v) for kw in inputs for v in kw.values())
+    except UnrepresentableInput:
+        stats["input_not_representable"] += 1
+        return None
+
     for attempt, q_sol in enumerate(spec["q_candidates"]):
-        got = q_candidate(q_sol, inputs)
+        got, raw_out = q_candidate(q_sol, inputs, debug=True)
         if got is None or len(got) != len(expected):
             stats["q_ran_badly"] += 1
+            rejects.append({"reason": "q_ran_badly", "description": desc[:200],
+                            "q_solution": q_sol[:600], "q_output": (raw_out or "")[-600:]})
             continue
         bad = [i for i, (e, g) in enumerate(zip(expected, got)) if not agrees(e, g)]
         if bad:
             stats["q_disagreed"] += 1
+            rejects.append({"reason": "q_disagreed", "description": desc[:200],
+                            "q_solution": q_sol[:600],
+                            "input": inputs[bad[0]], "expected": expected[bad[0]],
+                            "got": got[bad[0]]})
             continue
         stats["kept"] += 1
         return {
@@ -358,7 +377,8 @@ def main() -> int:
                             "generator_invalid_inputs", "contaminated",
                             "uninformative_inputs", "inputs_too_skewed",
                             "q_ran_badly", "q_disagreed", "kept", "spec_unparsed",
-                            "repaired"]}
+                            "repaired", "input_not_representable", "crashed",
+                            "q_unfenced"]}
     rejects: list = []
     specs: list[dict] = []
 
@@ -380,8 +400,10 @@ def main() -> int:
             q_prompt = Q_PROMPT.format(description=desc, args=";".join(arg_names))
             cands = [chat(q_prompt, base_url=args.base_url, model=args.model,
                           temperature=args.temperature) for _ in range(args.samples)]
+            parsed_q = [fenced(c, "q") for c in cands]
+            stats["q_unfenced"] += sum(1 for x in parsed_q if x is None)
             specs.append({"description": desc, "python": py_sol, "generator": gen,
-                          "q_candidates": [fenced(c, "q") or c for c in cands],
+                          "q_candidates": [x or c for x, c in zip(parsed_q, cands)],
                           "repair": lambda code, err: fenced(
                               chat(REPAIR_PROMPT.format(code=code, error=err),
                                    base_url=args.base_url, model=args.model,
@@ -392,7 +414,15 @@ def main() -> int:
     kept = []
     with out_path.open("a") as fh:
         for spec in specs:
-            rec = process_problem(spec, args, benchmark, stats, rejects)
+            # One bad problem must not take the batch down with it: a TypeError
+            # on a single generated input cost ~20 problems of GPU work.
+            try:
+                rec = process_problem(spec, args, benchmark, stats, rejects)
+            except Exception as exc:
+                stats["crashed"] += 1
+                rejects.append({"reason": f"crashed: {type(exc).__name__}: {exc}",
+                                "description": spec["description"][:300]})
+                rec = None
             if rec:
                 fh.write(json.dumps(rec) + "\n")
                 kept.append(rec)
