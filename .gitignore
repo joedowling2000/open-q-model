@@ -26,3 +26,7 @@ logs/
 # Authored by a frontier model, so forbidden in training by PREREGISTRATION.md;
 # kept out of the corpus to make that impossible to get wrong.
 corpus/fixture_records_NOT_FOR_TRAINING.jsonl
+
+# Packed training tensors and adapters — reproducible from the corpus + scripts
+data/
+out/lora-*/

@@ -36,6 +36,7 @@ import re
 import subprocess
 import tempfile
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path("/home/joedowling/Projects/qeval")
@@ -76,20 +77,45 @@ def gen_input(rng):
     return {...}
 ```
 
+The description must be unambiguous about boundary conditions: state explicitly
+whether ranges/windows include their endpoints, what happens on empty or
+single-element input, and how ties are broken.
+
 Rules: solve() must be deterministic, return a JSON-serialisable value, and run
 in well under a second. gen_input must never produce inputs that violate the
-constraints. Prefer vector/table operations that suit q. Topic: {topic}"""
+constraints. Use only the Python standard library — no pandas, no numpy.
+Prefer vector/table operations that suit q.
 
-Q_PROMPT = """Write a q/kdb+ function that solves this problem.
+Topic: {topic}
+Difficulty: {level}"""
 
-{description}
+# The q author sees the Python reference, not just the prose. Translating a
+# concrete implementation removes the spec ambiguity that produced most
+# disagreements in the first trial — e.g. whether a sliding window includes both
+# endpoints, which the description left open and the reference settles.
+Q_PROMPT = """Translate this Python function into q/kdb+.
+
+Problem: {description}
+
+Reference implementation, whose behaviour you must match exactly, including edge
+cases and boundary conditions:
+
+```python
+{python}
+```
 
 Reply with exactly one fenced q block defining `solve`, and nothing else:
 
 ```q
 solve:{{[{args}] ... }}
 ```
-Use idiomatic q. Do not include tests or commentary."""
+
+Requirements:
+- Match the reference's output exactly, including types (a list of strings stays
+  a list of strings, not a single joined string).
+- Write idiomatic vector q. Avoid `while` and `do` loops; prefer q's vector
+  primitives and iterators (each, over, scan, mavg, deltas, where, group).
+- No tests, no commentary, no explanation."""
 
 TOPICS = [
     "vector arithmetic", "string manipulation", "sorting and ranking",
@@ -333,7 +359,15 @@ def process_problem(spec: dict, args, benchmark: list[str], stats: dict,
         stats["input_not_representable"] += 1
         return None
 
-    for attempt, q_sol in enumerate(spec["q_candidates"]):
+    # Whether a solution uses loops is visible in the text, so order the
+    # candidates vector-first and stop at the first that verifies. Verifying all
+    # six to pick the nicest one was three times the q execution for the same
+    # data (batch 2 yield fell from 13/hour to 6/hour); this gets the idiom
+    # preference for free.
+    ordered = sorted(enumerate(spec["q_candidates"]),
+                     key=lambda t: (bool(re.search(r"\b(while|do)\[", t[1])), len(t[1])))
+    passing: list[tuple[int, str, bool]] = []
+    for attempt, q_sol in ordered:
         got, raw_out = q_candidate(q_sol, inputs, debug=True)
         if got is None or len(got) != len(expected):
             stats["q_ran_badly"] += 1
@@ -348,14 +382,28 @@ def process_problem(spec: dict, args, benchmark: list[str], stats: dict,
                             "input": inputs[bad[0]], "expected": expected[bad[0]],
                             "got": got[bad[0]]})
             continue
-        stats["kept"] += 1
+        passing.append((attempt, q_sol, bool(re.search(r"\b(while|do)\[", q_sol))))
+        break                      # ordered vector-first, so the first pass is the best
+
+    if not passing:
+        return None
+
+    # Prefer vector style; among equals prefer the shorter solution.
+    attempt, q_sol, uses_loops = sorted(passing, key=lambda t: (t[2], len(t[1])))[0]
+    if uses_loops:
+        stats["kept_but_imperative"] += 1
+    stats["kept"] += 1
+    if True:
         return {
             "description": desc, "python_solution": py_sol, "generator": gen,
             "q_solution": q_sol, "n_cases": len(inputs), "attempt": attempt,
+            "n_passing_attempts": len(passing),
+            "topic": spec.get("topic"), "difficulty": spec.get("difficulty"),
+            "problem_model": spec.get("problem_model"), "q_model": spec.get("q_model"),
+            "uses_loops": uses_loops,
             "inputs_sample": inputs[:3], "expected_sample": expected[:3],
             "id": hashlib.sha256(desc.encode()).hexdigest()[:16],
         }
-    return None
 
 
 def main() -> int:
@@ -366,8 +414,19 @@ def main() -> int:
     ap.add_argument("--samples", type=int, default=4, help="q attempts per problem")
     ap.add_argument("--cases", type=int, default=30)
     ap.add_argument("--base-url", default=os.environ.get("SYNTH_BASE_URL",
-                                                         "http://127.0.0.1:8100/v1"))
+                                                         "http://127.0.0.1:8100/v1"),
+                    help="endpoint of the PROBLEM author (general reasoning)")
     ap.add_argument("--model", default=os.environ.get("SYNTH_MODEL", "qwen3.5-27b"))
+    # Writing a good problem is general reasoning; writing good q is domain
+    # skill. Splitting them lets the best q model we have write the solutions.
+    ap.add_argument("--q-url", default=os.environ.get("SYNTH_Q_URL",
+                                                      "http://127.0.0.1:8101/v1"),
+                    help="endpoint of the q author (best measured q model)")
+    ap.add_argument("--q-model", default=os.environ.get("SYNTH_Q_MODEL", "qqwen-32b-rl"))
+    ap.add_argument("--parallel", type=int, default=4,
+                    help="problems written concurrently (keep <= server slots)")
+    ap.add_argument("--difficulty", default="easy,easy,medium,medium,hard",
+                    help="ladder cycled across problems")
     ap.add_argument("--temperature", type=float, default=0.9)
     ap.add_argument("--out", default="corpus/synthetic.jsonl")
     args = ap.parse_args()
@@ -378,7 +437,7 @@ def main() -> int:
                             "uninformative_inputs", "inputs_too_skewed",
                             "q_ran_badly", "q_disagreed", "kept", "spec_unparsed",
                             "repaired", "input_not_representable", "crashed",
-                            "q_unfenced"]}
+                            "q_unfenced", "kept_but_imperative"]}
     rejects: list = []
     specs: list[dict] = []
 
@@ -386,23 +445,46 @@ def main() -> int:
         specs = json.loads((ROOT / "scripts/synth/fixtures.json").read_text())
     else:
         rng = random.Random()
-        for i in range(args.n_problems):
-            topic = TOPICS[i % len(TOPICS)]
-            raw = chat(PROBLEM_PROMPT.replace("{topic}", topic), base_url=args.base_url,
-                       model=args.model, temperature=args.temperature)
-            desc, py_sol, gen = (fenced(raw, "description"), fenced(raw, "python"),
-                                 fenced(raw, "generator"))
-            if not (desc and py_sol and gen):
+        levels = [d.strip() for d in args.difficulty.split(",") if d.strip()]
+
+        def write_problem(i: int) -> tuple | None:
+            """One problem spec. Retries once if the model ignores the format."""
+            topic, level = TOPICS[i % len(TOPICS)], levels[i % len(levels)]
+            prompt = PROBLEM_PROMPT.replace("{topic}", topic).replace("{level}", level)
+            for attempt in range(2):
+                raw = chat(prompt, base_url=args.base_url, model=args.model,
+                           temperature=args.temperature)
+                parts = (fenced(raw, "description"), fenced(raw, "python"),
+                         fenced(raw, "generator"))
+                if all(parts):
+                    return (topic, level, *parts)
+            return None
+
+        # Both servers have several slots; issuing calls one at a time left them
+        # mostly idle. Problems are written concurrently, then each problem's q
+        # attempts are issued concurrently too.
+        with ThreadPoolExecutor(max_workers=args.parallel) as pool:
+            written = list(pool.map(write_problem, range(args.n_problems)))
+
+        for item in written:
+            if item is None:
                 stats["spec_unparsed"] += 1
                 continue
+            topic, level, desc, py_sol, gen = item
             m = re.search(r"def solve\(([^)]*)\)", py_sol)
             arg_names = [a.split(":")[0].strip() for a in (m.group(1) if m else "").split(",") if a.strip()]
-            q_prompt = Q_PROMPT.format(description=desc, args=";".join(arg_names))
-            cands = [chat(q_prompt, base_url=args.base_url, model=args.model,
-                          temperature=args.temperature) for _ in range(args.samples)]
+            q_prompt = Q_PROMPT.format(description=desc, python=py_sol,
+                                       args=";".join(arg_names))
+            with ThreadPoolExecutor(max_workers=args.samples) as qpool:
+                cands = list(qpool.map(
+                    lambda _: chat(q_prompt, base_url=args.q_url, model=args.q_model,
+                                   temperature=args.temperature),
+                    range(args.samples)))
             parsed_q = [fenced(c, "q") for c in cands]
             stats["q_unfenced"] += sum(1 for x in parsed_q if x is None)
-            specs.append({"description": desc, "python": py_sol, "generator": gen,
+            specs.append({"topic": topic, "difficulty": level,
+                          "problem_model": args.model, "q_model": args.q_model,
+                          "description": desc, "python": py_sol, "generator": gen,
                           "q_candidates": [x or c for x, c in zip(parsed_q, cands)],
                           "repair": lambda code, err: fenced(
                               chat(REPAIR_PROMPT.format(code=code, error=err),
