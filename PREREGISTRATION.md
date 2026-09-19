@@ -19,8 +19,8 @@ base model's score — and can it reach the q-specialised incumbent?
 ## Exam question, answerable with a number
 
 > **Pass@1 of the trained model on Q-HumanEval (164 problems, current grader,
-> one-shot, no tool use), compared with (a) its own base at 10.4% and
-> (b) qqWen-32B-RL at 37.9%, both measured here under identical conditions.**
+> one-shot, no tool use), compared with (a) its own base at 10.2% and
+> (b) qqWen-32B-RL at 38.4%, both measured here under identical conditions.**
 
 ## Hypotheses
 
@@ -115,8 +115,9 @@ which is worth knowing before anyone else spends a month on it.
 3. **Internal held-out split.** 15% of self-generated problems are never trained
    on and are scored separately, to detect a model that has learned our
    generation style rather than q.
-4. **Base model re-measured, not quoted.** The 10.4% baseline is re-confirmed at
-   30 samples under the same protocol as the trained model.
+4. **Base model re-measured, not quoted.** Done — see amendment 1. The baseline
+   is **10.2%** at 30 samples, under the same protocol the trained model will
+   face.
 5. **Identical conditions.** Any comparison uses the same grader, quantisation,
    sample count and prompt protocol, or it is not reported as a comparison.
 6. **Idiom check (descriptive).** Report the rate of `while`/`do` loops in
@@ -148,4 +149,17 @@ check was added.
 
 ## Amendments
 
-*(none yet)*
+**1 — 2026-09-19: baseline and target updated from 10-sample to 30-sample
+measurements.** Written into the original as control 4 ("base model re-measured,
+not quoted"), so this is the planned confirmation, not a revision after seeing a
+training result. No training has run.
+
+| | 10 samples (2026-09-17/18) | 30 samples (2026-09-19) |
+|---|---|---|
+| Qwen3.5-27B (baseline) | 10.4% | **10.2%** |
+| qqWen-32B-RL (target) | 37.9% | **38.4%** |
+
+Each model was sampled twice independently (10, then a fresh 20 with different
+seeds) and merged; the two passes agreed within a point on all three models.
+Note the target moved *up* by half a point, so the bar is now marginally harder,
+not easier.
