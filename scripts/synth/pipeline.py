@@ -117,6 +117,18 @@ Requirements:
   primitives and iterators (each, over, scan, mavg, deltas, where, group).
 - No tests, no commentary, no explanation."""
 
+REWRITE_PROMPT = """This q function is correct but written in an imperative style.
+
+```q
+{solution}
+```
+
+Rewrite it in idiomatic vector q with identical behaviour: no `while`, no `do`,
+no manual index counters. Use q's iterators and primitives (each, over, scan,
+where, group, sums, deltas, mavg, cut, flip) instead.
+
+Reply with exactly one fenced q block defining `solve`, and nothing else."""
+
 TOPICS = [
     "vector arithmetic", "string manipulation", "sorting and ranking",
     "time series windows", "table joins", "grouping and aggregation",
@@ -390,6 +402,20 @@ def process_problem(spec: dict, args, benchmark: list[str], stats: dict,
 
     # Prefer vector style; among equals prefer the shorter solution.
     attempt, q_sol, uses_loops = sorted(passing, key=lambda t: (t[2], len(t[1])))[0]
+
+    # If the only correct solutions are imperative, ask for a vector rewrite and
+    # verify it the same way. qqWen learned q from LeetCode translations, so 79%
+    # of accepted solutions arrived as while loops — training on those would
+    # teach Python-shaped q. The rewrite is kept only if it passes; otherwise the
+    # loop version stands.
+    if uses_loops and spec.get("rewrite"):
+        rewritten = spec["rewrite"](q_sol)
+        if rewritten and not re.search(r"\b(while|do)\[", rewritten):
+            got = q_candidate(rewritten, inputs)
+            if got is not None and len(got) == len(expected) and all(
+                    agrees(e, g) for e, g in zip(expected, got)):
+                q_sol, uses_loops = rewritten, False
+                stats["rewritten_to_vector"] += 1
     if uses_loops:
         stats["kept_but_imperative"] += 1
     stats["kept"] += 1
@@ -437,7 +463,8 @@ def main() -> int:
                             "uninformative_inputs", "inputs_too_skewed",
                             "q_ran_badly", "q_disagreed", "kept", "spec_unparsed",
                             "repaired", "input_not_representable", "crashed",
-                            "q_unfenced", "kept_but_imperative"]}
+                            "q_unfenced", "kept_but_imperative",
+                            "rewritten_to_vector"]}
     rejects: list = []
     specs: list[dict] = []
 
@@ -486,6 +513,10 @@ def main() -> int:
                           "problem_model": args.model, "q_model": args.q_model,
                           "description": desc, "python": py_sol, "generator": gen,
                           "q_candidates": [x or c for x, c in zip(parsed_q, cands)],
+                          "rewrite": lambda sol: fenced(
+                              chat(REWRITE_PROMPT.format(solution=sol),
+                                   base_url=args.q_url, model=args.q_model,
+                                   temperature=0.4), "q"),
                           "repair": lambda code, err: fenced(
                               chat(REPAIR_PROMPT.format(code=code, error=err),
                                    base_url=args.base_url, model=args.model,

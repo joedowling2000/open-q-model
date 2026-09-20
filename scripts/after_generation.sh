@@ -36,4 +36,15 @@ $PY scripts/train/train_lora.py \
   > logs/train-cpt.log 2>&1
 rc=$?
 log "training exited rc=$rc"
-[ $rc -eq 0 ] && log "CPT_DONE" || log "CPT_FAILED — see logs/train-cpt.log"
+if [ $rc -ne 0 ]; then
+  log "CPT_FAILED — see logs/train-cpt.log"
+  exit 1
+fi
+log "CPT_DONE"
+
+# Gate A: does continued pretraining beat the 10.2% base? Scored the same way
+# every benchmarked model was, with the adapter applied to the same base GGUF.
+log "scoring the checkpoint (gate A)"
+bash scripts/train/eval_checkpoint.sh out/lora-cpt/final qwen3.5-27b-cpt 30 \
+  >> logs/eval-cpt.log 2>&1
+log "gate A evaluation exited rc=$?"
