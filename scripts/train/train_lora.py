@@ -29,23 +29,35 @@ import torch
 ROOT = Path("/home/joedowling/Projects/qeval")
 
 
-def batches(blocks: np.ndarray, size: int, shuffle: bool, seed: int = 0):
+def batches(blocks: np.ndarray, size: int, shuffle: bool, seed: int = 0,
+            labels: np.ndarray | None = None):
+    """Yield (input_ids, labels). Labels default to input_ids.
+
+    Continued pretraining predicts every token, so labels are the inputs. SFT
+    must not: the prompt is given, not produced, and training on it teaches the
+    model to write problem statements. assemble_sft.py therefore ships a labels
+    array with the prompt and padding set to -100, and that array is used here
+    when the data directory provides one.
+    """
     idx = np.arange(len(blocks))
     if shuffle:
         np.random.default_rng(seed).shuffle(idx)
     for i in range(0, len(idx) - size + 1, size):
-        yield torch.from_numpy(blocks[idx[i:i + size]].astype(np.int64))
+        take = idx[i:i + size]
+        ids = torch.from_numpy(blocks[take].astype(np.int64))
+        lab = ids if labels is None else torch.from_numpy(labels[take].astype(np.int64))
+        yield ids, lab
 
 
 @torch.no_grad()
-def evaluate(model, blocks: np.ndarray, device, max_batches: int = 20) -> float:
+def evaluate(model, blocks: np.ndarray, device, max_batches: int = 20,
+             labels: np.ndarray | None = None) -> float:
     model.eval()
     total, n = 0.0, 0
-    for i, batch in enumerate(batches(blocks, 1, shuffle=False)):
+    for i, (ids, lab) in enumerate(batches(blocks, 1, shuffle=False, labels=labels)):
         if i >= max_batches:
             break
-        ids = batch.to(device)
-        loss = model(input_ids=ids, labels=ids).loss
+        loss = model(input_ids=ids.to(device), labels=lab.to(device)).loss
         total += loss.item()
         n += 1
     model.train()
@@ -80,8 +92,13 @@ def main() -> int:
     data = ROOT / args.data
     train = np.load(data / "train.npy")
     val = np.load(data / "val.npy")
+    train_lab = np.load(data / "train_labels.npy") if (
+        data / "train_labels.npy").exists() else None
+    val_lab = np.load(data / "val_labels.npy") if (
+        data / "val_labels.npy").exists() else None
+    masked = "response-masked" if train_lab is not None else "full (CPT)"
     print(f"data: {train.shape[0]} train blocks, {val.shape[0]} val, "
-          f"seq {train.shape[1]}", flush=True)
+          f"seq {train.shape[1]}, loss {masked}", flush=True)
 
     print(f"loading {args.model}", flush=True)
     model = AutoModelForCausalLM.from_pretrained(
@@ -115,14 +132,15 @@ def main() -> int:
 
     out = ROOT / args.out
     out.mkdir(parents=True, exist_ok=True)
-    print(f"baseline val loss: {evaluate(model, val, device):.4f}", flush=True)
+    print(f"baseline val loss: {evaluate(model, val, device, labels=val_lab):.4f}", flush=True)
 
     step, micro, running, t0 = 0, 0, 0.0, time.time()
     history = []
     for epoch in range(math.ceil(args.epochs)):
-        for batch in batches(train, args.micro_batch, shuffle=True, seed=epoch):
-            ids = batch.to(device)
-            loss = model(input_ids=ids, labels=ids).loss / args.accum
+        for ids, lab in batches(train, args.micro_batch, shuffle=True,
+                                seed=epoch, labels=train_lab):
+            loss = model(input_ids=ids.to(device),
+                         labels=lab.to(device)).loss / args.accum
             loss.backward()
             running += loss.item()
             micro += 1
@@ -142,7 +160,7 @@ def main() -> int:
             running = 0.0
 
             if step % args.eval_every == 0 or step == total_steps:
-                vl = evaluate(model, val, device)
+                vl = evaluate(model, val, device, labels=val_lab)
                 print(f"  val loss {vl:.4f}", flush=True)
                 history.append({"step": step, "val_loss": vl})
             if step % args.save_every == 0:
@@ -152,7 +170,7 @@ def main() -> int:
         if step >= total_steps:
             break
 
-    final_val = evaluate(model, val, device)
+    final_val = evaluate(model, val, device, labels=val_lab)
     model.save_pretrained(out / "final")
     (out / "history.json").write_text(json.dumps(
         {"args": vars(args), "history": history, "final_val_loss": final_val}, indent=1))
