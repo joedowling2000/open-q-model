@@ -438,7 +438,13 @@ def main() -> int:
                     help="run stages 2/4/5 on hand-written problems, no model needed")
     ap.add_argument("--n-problems", type=int, default=20)
     ap.add_argument("--samples", type=int, default=4, help="q attempts per problem")
-    ap.add_argument("--cases", type=int, default=30)
+    # 30 was not enough. Auditing the first 107 accepted problems on 60 fresh
+    # inputs each found one that had been accepted on luck: a longest-common-
+    # prefix solution whose early return escapes the whole function, so it only
+    # ever compares the first two strings. Thirty cases from its generator never
+    # produced a shared prefix long enough to expose it. The same audit caught a
+    # generator that raises on ~1-in-6 draws, which 30 cases also missed.
+    ap.add_argument("--cases", type=int, default=60)
     ap.add_argument("--base-url", default=os.environ.get("SYNTH_BASE_URL",
                                                          "http://127.0.0.1:8100/v1"),
                     help="endpoint of the PROBLEM author (general reasoning)")

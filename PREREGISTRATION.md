@@ -158,6 +158,39 @@ any training and before the first generated batch landed; moved to
 `corpus/fixture_records_NOT_FOR_TRAINING.jsonl` and git-ignored. The training
 corpus was empty of self-generated records at the time, so nothing was lost.
 
+**2 — 2026-09-20: two accepted problems were accepted on luck.** The whole
+argument for this dataset over Morgan Stanley's is that theirs accepts a
+solution on five fixed cases and so ships a known-wrong one. That claim has to
+survive being turned on my own data, so all 107 accepted problems were re-run
+against their Python references on **60 fresh inputs at a seed acceptance never
+used** (`scripts/synth/audit_fresh.py`, no model involved). **105 of 107 held
+up (98.1%).** Two did not:
+
+* `2d1ccddef3a94ce9` (longest common prefix) — **wrong, and accepted anyway.**
+  The early `:temp` inside the inner `while` returns from the whole function,
+  not the loop, so it only ever compares the first two strings. On
+  `["gmqsqnxlpznxflcjarhp", "gmqsqxylfmk", …, "gmqs", …]` it returns `"gmqsq"`
+  where the answer is `"gmqs"`. Thirty cases from its own generator never drew
+  a shared prefix long enough to discriminate. This is precisely the Morgan
+  Stanley failure mode, reproduced in my own pipeline.
+* `6aa7c3db5b8b225b` (also longest common prefix) — **flaky generator.**
+  `rand_str(rng.randint(0, 5))` calls `rng.randint(1, 0)` and raises whenever
+  the length draws 0. It missed the acceptance seed and hit a fresh one. Its
+  verification is therefore not reproducible, which disqualifies it whether or
+  not the q happens to be right.
+
+*What changes.* Both are moved to `corpus/quarantined.jsonl` with the failing
+input recorded; training uses `corpus/qdataset.audited.jsonl` (105 problems).
+The pipeline's acceptance default rises from 30 cases to 60. The fresh-input
+audit becomes a standing release check: no corpus is trained on until it has
+passed one at a seed disjoint from acceptance, and the pass rate is reported.
+
+*What it does not change.* No gate, metric, evaluation or lineage rule moves.
+The finding makes the dataset smaller and the claim about it weaker-but-true:
+execution verification on generator-drawn inputs caught ~98% of errors at 30
+cases, not 100%, and the residue is concentrated in problems whose generators
+rarely draw discriminating inputs.
+
 ## Amendments
 
 **2 — 2026-09-19: self-improvement abandoned; the claim becomes distillation.**

@@ -1,0 +1,42 @@
+{
+  "n": 107,
+  "cases": 60,
+  "seed": 20260920,
+  "counts": {
+    "agreed": 105,
+    "generator_failed": 1,
+    "DISAGREED": 1
+  },
+  "failures": [
+    {
+      "id": "6aa7c3db5b8b225b",
+      "verdict": "generator_failed",
+      "topic": "string manipulation",
+      "description": "Given a list of non-empty strings containing only lowercase letters and digits, compute the length of the longest common prefix shared by all strings in the list. If the list is empty, return 0. If th",
+      "q_solution": "solve:{[strings]\n    n:count strings;\n    if[n=0; :0];\n    if[n=1; :count first strings];\n    min_len:min count each strings;\n    i:0;\n    while[i<min_len;\n        char:first strings[0;i];\n        j:1;\n        while[j<n;\n            if[not strings[j;i]=char; :i];\n            j+:1];\n        i+:1];\n    :i}"
+    },
+    {
+      "id": "2d1ccddef3a94ce9",
+      "verdict": "DISAGREED",
+      "topic": "string manipulation",
+      "description": "Given a list of non-empty lowercase alphabetic strings, compute the longest common prefix shared by all strings in the list. The result must be the longest string that is a prefix of every input strin",
+      "q_solution": "solve:{[strings]\n    n:count strings;\n    if[n=0; :\"\"];\n    prefix:first strings;\n    i:1;\n    while[i<n;\n        j:0;\n        temp:\"\";\n        while[j<count prefix;\n            if[prefix[j]=strings[i;j];\n                temp,:prefix[j]];\n            if[not prefix[j]=strings[i;j]; :temp];\n            j+:1];\n        prefix:temp;\n        i+:1];\n    :prefix}",
+      "n_bad": 1,
+      "n_tested": 60,
+      "input": {
+        "strings": [
+          "gmqsqnxlpznxflcjarhp",
+          "gmqsqxylfmk",
+          "gmqsjqugjvfttgwcjnt",
+          "gmqsldzz",
+          "gmqs",
+          "gmqsfulelufnfhx",
+          "gmqsinluovdlccztmoclm",
+          "gmqsdfioqcieojwynqrgfpps"
+        ]
+      },
+      "expected": "gmqs",
+      "got": "gmqsq"
+    }
+  ]
+}
