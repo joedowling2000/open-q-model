@@ -193,6 +193,38 @@ rarely draw discriminating inputs.
 
 ## Amendments
 
+**3 — 2026-09-20: the vector rewrite gets a different rewriter, and is retried.**
+Decided before Phase 4 SFT, after gate A's corpus was fixed.
+
+*Evidence.* 85 of the 107 accepted solutions (79%) are imperative `while`-loop
+q. The pipeline already had a rewrite-to-vector step, and it verified **0 of
+85**. The reason is that the rewriter was qqWen — the model whose LeetCode
+training gave it the loop habit — asked once, at temperature 0.4, to undo its
+own reflex.
+
+*What changes.* `scripts/synth/revectorise.py` runs the rewrite as a separate
+pass with (i) a different rewriter, (ii) five attempts up a temperature ladder
+rather than one, and (iii) a prompt carrying the problem description and the
+Python reference, so the model rewrites the intent instead of transliterating
+the loop. The intended rewriter is the **q-adapted Qwen3.5-27B checkpoint from
+gate A** — the model being improved rewriting its own training data, which is
+self-improvement under the lineage rule, not distillation from a stronger
+outside model.
+
+*What does not change.* Verification. A rewrite is kept only if it agrees with
+the Python reference on 40 freshly drawn inputs, which is more than acceptance
+used, so a kept rewrite is held to a stricter standard than the solution it
+replaces. Any rewrite that fails leaves the loop version standing, and the pass
+re-verifies the original first — an original that fails fresh inputs is
+reported as suspect rather than rewritten. The imperative version is retained
+in `q_solution_imperative`, so the loop→vector pair is itself a training task
+and the change is fully reversible.
+
+*Why it matters to the claim.* Training on loop-shaped q teaches Python written
+in q, which is the weakness of the model we are trying to beat. Reporting the
+imperative share before and after is a stated quality metric, not a cosmetic
+one.
+
 **2 — 2026-09-19: self-improvement abandoned; the claim becomes distillation.**
 Decided after seeing the generation yield, before any training run.
 
