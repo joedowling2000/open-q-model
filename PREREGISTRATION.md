@@ -191,6 +191,30 @@ execution verification on generator-drawn inputs caught ~98% of errors at 30
 cases, not 100%, and the residue is concentrated in problems whose generators
 rarely draw discriminating inputs.
 
+**3 — 2026-09-21: gate A's generation lost problems to a client timeout.** The
+harness sends each problem as a single request for all 30 samples, under
+litellm's 600 s default. With the CPT adapter applied at runtime the server
+decoded ~1.0 tok/s per slot (the base alone: 1.65), so 30 × 512 tokens could
+overrun the limit, and the harness wrote a timed-out request as **30 empty
+completions**, which grade as failures. By the time it was caught, 14 of the
+first 76 problems (420 samples) had been lost, 8 of them in the last 16. Scored
+as it stood, gate A would have been biased against the trained model by a
+serving artefact. Every earlier results file was checked: none has an empty
+completion, so the baseline and comparison models are unaffected.
+
+*What changes.* The run was stopped. The 62 problems with real completions are
+kept (`results/qwen3.5-27b-cpt.part1.jsonl`); the 14 lost problems and the 88
+not yet reached are regenerated on the same server, adapter and sampling
+settings (`scripts/train/resume_eval.sh`), with a 7200 s timeout and two
+problems in flight. The merge refuses to produce a file if any problem is short
+or has an empty completion, so a silent zero cannot reach the grader again.
+
+*Interim look, disclosed.* Before restarting, the 62 intact problems were
+graded against the base model on the same problems: pass@1 22.3% vs 19.7%,
+paired difference +2.6 points, bootstrap 95% CI [+0.2, +5.3]. This was done to
+diagnose the failure, not to decide anything; gate A is judged only on the full
+164-problem run, and nothing about it was changed after the look.
+
 ## Amendments
 
 **3 — 2026-09-20: the vector rewrite gets a different rewriter, and is retried.**

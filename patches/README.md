@@ -9,7 +9,7 @@ cd q-evaluation-harness && git checkout $(cat ../patches/q-evaluation-harness.ba
 git apply ../patches/q-evaluation-harness.diff
 ```
 
-Four fixes, none of which touch grading:
+Six changes, none of which touch grading:
 
 1. `src/models/factory.py` — vLLM imported at module scope made every other
    backend unusable where vLLM will not install (aarch64). Now lazy.
@@ -21,6 +21,11 @@ Four fixes, none of which touch grading:
 4. `src/models/model_config.py` — an unrecognised model name falls back to
    `max_concurrent=1`, serialising the whole run; a self-hosted endpoint has no
    remote rate limit to respect. Added a `QEVAL_MAX_CONCURRENT` override.
+5. `src/models/litellm_model.py` — a request that times out (litellm's 600 s
+   default covers all n samples at once) comes back as n empty completions,
+   which grade as failures. Added a `QEVAL_REQUEST_TIMEOUT` override.
+6. `src/cli.py` — `QEVAL_ONLY_TASKS` (comma-separated task ids) generates a
+   subset, to redo problems a run lost without redoing the whole benchmark.
 
 Test execution and pass@k computation are untouched, so scores produced here are
 comparable with the upstream leaderboard (modulo quantisation, which we state).

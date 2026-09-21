@@ -1,3 +1,21 @@
+diff --git a/src/cli.py b/src/cli.py
+index d1ae4e5..370599f 100644
+--- a/src/cli.py
++++ b/src/cli.py
+@@ -525,6 +525,13 @@ def run_generate_command(
+         logger.error(f"Failed to load dataset '{dataset}': {e}")
+         return
+ 
++    # Regenerate a subset, e.g. the problems a run lost to request timeouts.
++    only = os.environ.get("QEVAL_ONLY_TASKS")
++    if only:
++        wanted = {t.strip() for t in only.split(",") if t.strip()}
++        problems = [p for p in problems if str(p["task_id"]) in wanted]
++        logger.info(f"QEVAL_ONLY_TASKS: generating {len(problems)} problems")
++
+     # Setup model
+     try:
+         model_instance = create_model(model, **model_kwargs)
 diff --git a/src/evaluation/q_python_executor.py b/src/evaluation/q_python_executor.py
 index a64f355..8b338cb 100644
 --- a/src/evaluation/q_python_executor.py
@@ -82,6 +100,32 @@ index 0214487..26782ed 100644
          return VLLMModel(model_name, **kwargs)
      else:
          raise ValueError(f"Unsupported model type: {model_type}")
+diff --git a/src/models/litellm_model.py b/src/models/litellm_model.py
+index 830df9a..a11736b 100644
+--- a/src/models/litellm_model.py
++++ b/src/models/litellm_model.py
+@@ -1,5 +1,7 @@
+ """LiteLLM model wrapper for unified API access."""
+ 
++import os
++
+ import litellm
+ import logging
+ import asyncio
+@@ -44,6 +46,13 @@ class LiteLLMModel(BaseModel, AsyncGenerator):
+             "seed": kwargs.get("seed", DEFAULT_SEED),
+         }
+ 
++        # litellm's 600 s default covers the whole n-sample request. A local
++        # server decoding 30 samples at ~1 tok/s overruns it, and a timed-out
++        # request comes back as n empty completions that grade as failures.
++        request_timeout = os.environ.get("QEVAL_REQUEST_TIMEOUT")
++        if request_timeout:
++            self.default_params["timeout"] = float(request_timeout)
++
+         # Get unified model configuration
+         self.config = get_model_config(model_name)
+ 
 diff --git a/src/models/model_config.py b/src/models/model_config.py
 index 8c80f79..dce0b83 100644
 --- a/src/models/model_config.py

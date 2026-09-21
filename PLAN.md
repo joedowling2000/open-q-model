@@ -15,8 +15,8 @@ The question: **Morgan Stanley's qqWen is the only serious open q model, built o
 | 0. Measure the starting line | ✅ **done, 30 samples, validated** |
 | 1. Assemble a corpus | ✅ measured: ~17M tokens usable |
 | 2. Synthetic data pipeline | 🔄 rebuilding as distillation from qqWen — see [GENERATION.md](GENERATION.md) and amendment 2 |
-| 3. Continued pretraining | ⬜ not started |
-| 4. SFT | ⬜ not started |
+| 3. Continued pretraining | 🔄 trained (val loss 1.994 → 1.822, 0.4 epoch); gate A eval running — incident 3 |
+| 4. SFT | 🔄 data assembled (six task types, audited set); waits on gate A and the rewrite pass |
 | 5. RL with execution rewards | ⬜ not started |
 | 6. Agent-mode evaluation | ⬜ not started (needs a new harness backend) |
 
