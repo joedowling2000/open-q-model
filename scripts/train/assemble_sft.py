@@ -170,8 +170,13 @@ def main() -> int:
 
     samples: list[dict] = []
     for rec in accepted:
+        # A record may restrict its tasks (bank_to_records.py gives templated
+        # family exercises desc2q and py2q only, to downweight them).
+        allowed = set(rec.get("tasks") or ("desc2q", "py2q", "q2py", "q2desc"))
         for name, fn in (("desc2q", desc2q), ("py2q", py2q),
                          ("q2py", q2py), ("q2desc", q2desc)):
+            if name not in allowed:
+                continue
             samples.append({"task": name, "problem": rec["id"],
                             "prompt": fn(rec)[0], "response": fn(rec)[1]})
         got = vectorise(rec)

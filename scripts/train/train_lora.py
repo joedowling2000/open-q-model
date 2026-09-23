@@ -29,8 +29,18 @@ import torch
 ROOT = Path("/home/joedowling/Projects/qeval")
 
 
+def real_lengths(blocks: np.ndarray, labels: np.ndarray | None) -> np.ndarray:
+    """Length up to the last supervised token. SFT blocks are padded to seq_len
+    but average ~270 real tokens, so without trimming ~87% of every step is
+    padding. CPT blocks are full, so their length is the block length."""
+    if labels is None:
+        return np.full(len(blocks), blocks.shape[1])
+    sup = labels != -100
+    return np.where(sup.any(1), blocks.shape[1] - np.argmax(sup[:, ::-1], axis=1), 1)
+
+
 def batches(blocks: np.ndarray, size: int, shuffle: bool, seed: int = 0,
-            labels: np.ndarray | None = None):
+            labels: np.ndarray | None = None, lengths: np.ndarray | None = None):
     """Yield (input_ids, labels). Labels default to input_ids.
 
     Continued pretraining predicts every token, so labels are the inputs. SFT
@@ -40,12 +50,26 @@ def batches(blocks: np.ndarray, size: int, shuffle: bool, seed: int = 0,
     when the data directory provides one.
     """
     idx = np.arange(len(blocks))
+    rng = np.random.default_rng(seed)
     if shuffle:
-        np.random.default_rng(seed).shuffle(idx)
-    for i in range(0, len(idx) - size + 1, size):
-        take = idx[i:i + size]
-        ids = torch.from_numpy(blocks[take].astype(np.int64))
-        lab = ids if labels is None else torch.from_numpy(labels[take].astype(np.int64))
+        rng.shuffle(idx)
+    groups = [idx[i:i + size] for i in range(0, len(idx) - size + 1, size)]
+    if lengths is not None and size > 1:
+        # Length-grouped micro-batches: sort within windows of 64 so a batch's
+        # members are similar in length and trimming removes most padding,
+        # then shuffle the batches so order stays random.
+        window = 64
+        groups = []
+        for w in range(0, len(idx), window):
+            chunk = sorted(idx[w:w + window], key=lambda j: lengths[j])
+            groups += [np.array(chunk[i:i + size])
+                       for i in range(0, len(chunk) - size + 1, size)]
+        if shuffle:
+            rng.shuffle(groups)
+    for take in groups:
+        cut = int(lengths[take].max()) if lengths is not None else blocks.shape[1]
+        ids = torch.from_numpy(blocks[take, :cut].astype(np.int64))
+        lab = ids if labels is None else torch.from_numpy(labels[take, :cut].astype(np.int64))
         yield ids, lab
 
 
@@ -54,7 +78,9 @@ def evaluate(model, blocks: np.ndarray, device, max_batches: int = 20,
              labels: np.ndarray | None = None) -> float:
     model.eval()
     total, n = 0.0, 0
-    for i, (ids, lab) in enumerate(batches(blocks, 1, shuffle=False, labels=labels)):
+    lengths = real_lengths(blocks, labels)
+    for i, (ids, lab) in enumerate(batches(blocks, 1, shuffle=False, labels=labels,
+                                           lengths=lengths)):
         if i >= max_batches:
             break
         loss = model(input_ids=ids.to(device), labels=lab.to(device)).loss
@@ -78,6 +104,14 @@ def main() -> int:
     ap.add_argument("--warmup", type=int, default=20)
     ap.add_argument("--eval-every", type=int, default=50)
     ap.add_argument("--save-every", type=int, default=200)
+    ap.add_argument("--merge-adapter", default=None,
+                    help="merge this LoRA into the base weights before adding a new one "
+                         "(SFT on top of the gate A CPT adapter)")
+    ap.add_argument("--targets", choices=["attn", "all"], default="attn",
+                    help="attn: full-attention q/k/v/o only (the CPT setting); all: also "
+                         "the DeltaNet projections and the MLP")
+    ap.add_argument("--max-steps", type=int, default=None,
+                    help="stop after this many optimiser steps (timing runs)")
     ap.add_argument("--smoke", action="store_true",
                     help="tiny model, 6 steps: proves the loop, not the result")
     args = ap.parse_args()
@@ -103,6 +137,10 @@ def main() -> int:
     print(f"loading {args.model}", flush=True)
     model = AutoModelForCausalLM.from_pretrained(
         args.model, dtype=torch.bfloat16, device_map="cuda")
+    if args.merge_adapter:
+        from peft import PeftModel
+        print(f"merging {args.merge_adapter} into the base weights", flush=True)
+        model = PeftModel.from_pretrained(model, args.merge_adapter).merge_and_unload()
     model.gradient_checkpointing_enable()
     model.enable_input_require_grads()
     model.config.use_cache = False
@@ -112,7 +150,13 @@ def main() -> int:
         task_type="CAUSAL_LM",
         # Attention projections only. Adapting the MLP as well roughly doubles
         # the trainable parameters for a marginal gain on a corpus this size.
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+        target_modules=(["q_proj", "k_proj", "v_proj", "o_proj"] if args.targets == "attn" else
+                        # Qwen3.5 has full attention in 1 layer of 4; the other
+                        # 48 of 64 are DeltaNet, whose projections are named
+                        # differently. "attn" therefore adapts only 16 layers.
+                        ["q_proj", "k_proj", "v_proj", "o_proj",
+                         "in_proj_qkv", "in_proj_z", "out_proj",
+                         "gate_proj", "up_proj", "down_proj"]),
     )
     model = get_peft_model(model, lora)
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -126,6 +170,11 @@ def main() -> int:
 
     steps_per_epoch = max(1, len(train) // (args.micro_batch * args.accum))
     total_steps = max(1, int(steps_per_epoch * args.epochs))
+    if args.max_steps:
+        total_steps = min(total_steps, args.max_steps)
+    train_len = real_lengths(train, train_lab)
+    print(f"mean real length {train_len.mean():.0f} of {train.shape[1]} "
+          f"({100 * train_len.mean() / train.shape[1]:.0f}% of each block)", flush=True)
     sched = torch.optim.lr_scheduler.LambdaLR(
         opt, lambda s: min(1.0, (s + 1) / max(args.warmup, 1)) *
                        0.5 * (1 + math.cos(math.pi * min(s / total_steps, 1.0))))
@@ -138,7 +187,7 @@ def main() -> int:
     history = []
     for epoch in range(math.ceil(args.epochs)):
         for ids, lab in batches(train, args.micro_batch, shuffle=True,
-                                seed=epoch, labels=train_lab):
+                                seed=epoch, labels=train_lab, lengths=train_len):
             loss = model(input_ids=ids.to(device),
                          labels=lab.to(device)).loss / args.accum
             loss.backward()
