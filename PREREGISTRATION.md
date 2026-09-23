@@ -217,6 +217,108 @@ diagnose the failure, not to decide anything; gate A is judged only on the full
 
 ## Amendments
 
+**7 — 2026-09-23: an internal held-out set is fixed before any distillation.**
+Decided before any of the data in amendments 5 and 6 was generated or trained on.
+
+*What.* 75 medium and hard original questions from the Q study bank (51 medium,
+24 hard; 54 carry a verified q solution) are set aside by
+`scripts/train/heldout_split.py`: 15% per (difficulty, topic) stratum, seed
+20260923. Questions sharing identical q, identical Python or a
+`similar_reference_ids` link are held out or kept as a whole group, so no twin
+of a held-out question reaches training. The id list and its hash
+(`6e608a9c…`) are committed in `corpus/heldout_v5.json`.
+
+*Rule.* These questions are never trained on, never used as distillation
+seeds, never used as RL prompts, and never shown to a teacher model. They are
+scored like the benchmark: the model writes q from the description, one-shot,
+and a sample passes if it agrees with the Python reference on 60 fresh
+generated inputs.
+
+*Why.* Q-HumanEval has 164 problems and ~±3 points of noise, and it is mostly
+short functions. The held-out set is harder and closer to what the new data
+teaches, so it can show whether a data change helped when the benchmark cannot.
+It is a secondary measure. The headline stays Q-HumanEval pass@1 and the gates
+do not change.
+
+**6 — 2026-09-23: new training data — the Q study bank, Morgan Stanley problems
+re-solved by our pipeline, and expert iteration.** Decided before any of it was
+trained on.
+
+*Q study bank (v5).* 2,906 questions in `corpus/q_study_v5`, hashes in
+`SHA256SUMS`. Its q comes from three sources, each recorded:
+(i) 364 medium and hard solutions written by two q developers (colleagues of the author),
+credited in an `authors` field on each solution. This is
+human-written q and permitted under the original lineage rule.
+(ii) 247 earlier original solutions and (iii) 2,000 family exercises built by
+the bank's template generator (`provenance: family-derived composition`).
+Per the data owner, the bank was produced by colleagues without frontier-model
+output. Near-duplicate groups (shared q, shared Python, or a
+`similar_reference_ids` link) stay on one side of every split. Family exercises
+are downweighted in training because they are templated one-liners. Every q
+solution used must pass the fresh-input check of incident 2 at assembly time,
+and any that fails is excluded and reported. Three are known to fail already:
+`question_0556` (wrong on 1 of 60), `question_0267` and `question_0414`
+(halfway rounding).
+
+*Morgan Stanley problems.* The 678 problem **descriptions** in
+`morganstanley/sft-python-q-problems` are used as disclosed generation seeds, as
+the original lineage rule already allowed. Their **q solutions and Python
+references stay forbidden**. For each problem, Qwen3.5-27B, an open general
+model, writes a new Python reference and an input generator from the
+description. Morgan Stanley's test cases are used only to check that the new
+reference is right: a reference that disagrees with their expected outputs is
+discarded. The test cases never appear in training text. q solutions then come
+from the teacher (amendment 5) through the usual verification.
+
+*Expert iteration.* After SFT, the trained model attempts problems that are
+still unsolved. Its solutions are kept when they pass verification and are
+trained on in the next round. This is the model's own verified output, which
+the original lineage rule permits. Rounds continue only while the held-out
+score (amendment 7) improves, at most three rounds.
+
+*Disclosed comparison, never the headline.* One comparison run adds Morgan
+Stanley's raw q solutions to otherwise identical training, so what they would
+contribute can be reported. That model is labelled as such and is not a
+candidate for any gate.
+
+*Order.* First, SFT from the gate A checkpoint on the Q study bank alone. That
+is gate B's first test, and it gives the baseline the distilled data must beat.
+Then the distilled data, then expert iteration, then RL (amendment 4).
+
+**5 — 2026-09-23: the teacher changes from qqWen-32B-RL to qqWen-72B-RL.**
+Decided before any generation with either.
+
+*Why.* Amendment 2 allows "the best available open-weight q model". The
+harness's published results give qqWen-72B-RL 45.1% pass@1 against 38.4% for
+the 32B we measured. Distilling from the stronger model raises the ceiling on
+what verification can keep. Its Apache-2.0 licence keeps the data releasable.
+
+*What does not change.* Every teacher solution is verified on 60 fresh inputs
+with the discriminating check, and loop solutions are rewritten under
+amendment 3. The claim is still distillation from qqWen, and it is reported
+that way. The target stays qqWen-32B-RL's 38.4%, measured here. The 72B's
+45.1% will be re-measured under our protocol and reported as a secondary bar.
+
+**4 — 2026-09-23: RL with execution rewards enters scope.** The original
+pre-registration put RL out of scope "until it gets its own entry". This is
+that entry, written before any RL run.
+
+*Method.* GRPO on the SFT (or last expert-iteration) checkpoint. Each prompt
+is a problem description. The reward for each sampled q is 1 if it agrees with
+the Python reference on fresh inputs from the problem's generator, and 0
+otherwise. It is run by the KDB-X interpreter. A problem enters the prompt pool
+only if its reference passes the discriminating check. Problems the current
+model solves some of the time, but not every time, are weighted up.
+Q-HumanEval and the amendment 7 held-out set are never RL prompts.
+
+*Where.* On the DGX Spark only. Proven first at 9B: RL must improve the 9B's
+held-out score over its own SFT start, with the bootstrap CI on the difference
+excluding zero, before any 27B RL run.
+
+*Gate.* Gate C is unchanged: Q-HumanEval pass@1 ≥ 38.4%, with the 95% CI lower
+bound above qqWen-32B-RL's point estimate, under the fixed protocol (one-shot,
+no tools, 512 tokens, reasoning off, 30 samples, Q8_0).
+
 **3 — 2026-09-20: the vector rewrite gets a different rewriter, and is retried.**
 Decided before Phase 4 SFT, after gate A's corpus was fixed.
 

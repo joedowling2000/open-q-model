@@ -30,3 +30,9 @@ corpus/fixture_records_NOT_FOR_TRAINING.jsonl
 # Packed training tensors and adapters — reproducible from the corpus + scripts
 data/
 out/lora-*/
+
+# Q study bank: colleagues' data, carries contributor names, not cleared for
+# publication. Hashes are committed (corpus/q_study_v5/SHA256SUMS), the data is not.
+corpus/q_study_v5/*
+!corpus/q_study_v5/SHA256SUMS
+Q_Study_Data_Sanitised*.zip
