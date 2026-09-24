@@ -270,6 +270,14 @@ reference is right: a reference that disagrees with their expected outputs is
 discarded. The test cases never appear in training text. q solutions then come
 from the teacher (amendment 5) through the usual verification.
 
+*Addendum, 2026-09-24, before stage A ran.* Morgan Stanley's fixed test cases
+alone are too weak to validate a new reference. In a check, a reference for
+LeetCode 1013 that returns `c>=2` instead of `c>=3` passed every one of them.
+So a rebuilt reference must also agree with Morgan Stanley's Python on all 60
+inputs drawn from the new generator. Their Python is an oracle in a separate
+process only. It is never shown to a model, never included in a prompt, and
+never trained on. The lineage rule is unchanged.
+
 *Expert iteration.* After SFT, the trained model attempts problems that are
 still unsolved. Its solutions are kept when they pass verification and are
 trained on in the next round. This is the model's own verified output, which

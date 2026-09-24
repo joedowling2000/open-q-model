@@ -6,7 +6,8 @@ training material. For each problem, Qwen3.5-27B (an open general model) writes
 a fresh `solve` and an input generator from the description alone. Morgan
 Stanley's test cases then act as a check on our reference, never as training
 text: a reference is kept only if it reproduces every one of their expected
-outputs. The generator must also produce inputs the reference accepts, and the
+outputs and agrees with their Python on all 60 generated inputs (their Python
+is an oracle only, never shown to a model or trained on). The generator must also produce inputs the reference accepts, and the
 answers must vary (no single answer in >90% of 60 draws, control 2).
 
 The output is a problem bank in the same shape as the Q study bank, ready for
@@ -22,6 +23,7 @@ import argparse
 import ast
 import glob
 import json
+import multiprocessing as mp
 import random
 import re
 import sys
@@ -93,10 +95,56 @@ def same_output(value, expected: str) -> bool:
         return False
 
 
+def _validate(src: str, tests: list, args: list, ms_src: str, q) -> None:
+    """Runs in a child process: model-written code may loop forever or crash.
+
+    Two checks, because Morgan Stanley's five-odd fixed tests are weak on their
+    own (a reference returning `c>=2` instead of `c>=3` for LeetCode 1013 passes
+    all of them). The new reference must reproduce their expected outputs AND
+    agree with their Python on all 60 generated inputs. Their Python is only an
+    oracle here; it is never shown to a model or trained on (amendment 6 addendum)."""
+    try:
+        g: dict = {}
+        exec(src, g)
+        if not all(same_output(g["solve"](**json.loads(json.dumps(kw))), exp)
+                   for kw, exp in tests):
+            q.put(("fail", "disagrees with Morgan Stanley's expected outputs"))
+            return
+        inputs, expected = qcheck.gen_inputs(src, args, range(700000, 700060))
+        oracle: dict = {}
+        exec(ms_src, oracle)
+        for kw, exp in zip(inputs, expected):
+            try:
+                theirs = json.loads(json.dumps(oracle["solve"](**json.loads(json.dumps(kw)))))
+            except Exception:
+                q.put(("fail", "generator input outside Morgan Stanley's reference domain"))
+                return
+            if theirs != exp:
+                q.put(("fail", "disagrees with Morgan Stanley's Python on a generated input"))
+                return
+        q.put(("ok", qcheck.dominant_share(expected)))
+    except BaseException as e:
+        q.put(("fail", f"raised {type(e).__name__}"))
+
+
+def validate(src: str, tests: list, args: list, ms_src: str,
+             timeout: float = 60) -> tuple[str, object]:
+    ctx = mp.get_context("spawn")  # fork from a threaded process can deadlock
+    q = ctx.Queue()
+    p = ctx.Process(target=_validate, args=(src, tests, args, ms_src, q))
+    p.start()
+    p.join(timeout)
+    if p.is_alive():
+        p.kill()
+        p.join()
+        return "fail", "timed out"
+    return q.get() if not q.empty() else ("fail", "crashed")
+
+
 def build(row: dict, url: str, model: str, attempts: int) -> dict:
     tests = test_calls(row)
     if not tests:
-        return {"id": row["problem_id"], "ok": False, "reason": "tests unparseable"}
+        return {"id": "ms__" + row["problem_id"], "ok": False, "reason": "tests unparseable"}
     args = list(tests[0][0])
     desc = row["problem_description"].strip()
     last = "no reply"
@@ -109,18 +157,11 @@ def build(row: dict, url: str, model: str, attempts: int) -> dict:
             last = "missing block"
             continue
         src = py + "\n\n" + gen + "\n"
-        g: dict = {}
-        try:
-            exec(src, g)
-            if not all(same_output(g["solve"](**json.loads(json.dumps(kw))), exp)
-                       for kw, exp in tests):
-                last = "disagrees with Morgan Stanley's expected outputs"
-                continue
-            _, expected = qcheck.gen_inputs(src, args, range(700000, 700060))
-        except Exception as e:
-            last = f"raised {type(e).__name__}"
+        status, info = validate(src, tests, args, row["python_solution"])
+        if status != "ok":
+            last = info
             continue
-        share = qcheck.dominant_share(expected)
+        share = info
         if share > 0.9:
             last = f"generator not discriminating ({share:.2f})"
             continue
