@@ -53,6 +53,10 @@ def reference_only(src: str) -> str:
 def main() -> int:
     held = set(json.loads((ROOT / "corpus/heldout_v5.json").read_text())["ids"])
     ver = json.loads((ROOT / "corpus/q_study_v5_verification.json").read_text())["results"]
+    # Family solutions with the problem's real argument names instead of the
+    # template's arg0/arg1 (rename_family_args.py; each rename re-verified).
+    renamed_path = BANK / "family_renamed.json"
+    renamed = json.loads(renamed_path.read_text()) if renamed_path.exists() else {}
     recs = [json.loads(l) for n in ("questions.jsonl", "reserve_exercises.jsonl")
             for l in (BANK / n).open()]
 
@@ -83,11 +87,12 @@ def main() -> int:
         for r, tasks in [(r, ["desc2q", "py2q", "q2py", "q2desc"]) for r in originals] + \
                         [(r, ["desc2q", "py2q"]) for r in fam_kept]:
             sol = r["solutions"][0]
+            q = renamed.get(r["id"], sol["code"])
             fh.write(json.dumps({
                 "id": r["id"],
                 "description": r["description"],
                 "python_solution": reference_only(r["python_src"]),
-                "q_solution": sol["code"],
+                "q_solution": q,
                 "tasks": tasks,
                 "topic": r["topic"],
                 "difficulty": r.get("difficulty"),
