@@ -23,20 +23,25 @@ serve() {  # name port slots
 }
 
 while systemctl --user list-units 'run-qevalv5*' --no-legend | grep -q running; do sleep 120; done
+pkill -f -- "--alias qqwen-72b-rl" && sleep 10   # a leftover diagnostic server
 log "GPU free"
 
+if [ "$(wc -l < corpus/ms_rebuilt.jsonl 2>/dev/null || echo 0)" -ge 678 ]; then
+  log "stage A already complete; skipping"
+else
 log "stage A: Morgan Stanley references with qwen3.5-27b"
 serve qwen3.5-27b 8101 8 || exit 1
 $QPY scripts/synth/ms_reference.py --url http://127.0.0.1:8101/v1 --model qwen3.5-27b \
   --workers 8 --out corpus/ms_rebuilt.jsonl > logs/ms-reference.log 2>&1
 log "stage A exited rc=$? ($(grep -c '"ok": true' corpus/ms_rebuilt.jsonl) references kept)"
 kill $SERVER; wait $SERVER 2>/dev/null; sleep 10
+fi
 
 log "stage B: teacher distillation with qqwen-72b-rl"
 serve qqwen-72b-rl 8103 16 || exit 1
 $QPY scripts/synth/distill.py --url http://127.0.0.1:8103/v1 --model qqwen-72b-rl \
-  --in corpus/q_study_v5/questions.jsonl corpus/ms_rebuilt.jsonl --only-unsolved \
-  --samples 8 --workers 2 --out corpus/distilled.jsonl > logs/distill.log 2>&1
+  --in corpus/ms_rebuilt.jsonl corpus/q_study_v5/questions.jsonl --only-unsolved \
+  --samples 4 --extra 4 --workers 4 --out corpus/distilled.jsonl > logs/distill.log 2>&1
 log "stage B exited rc=$? ($(grep -c '"ok": true' corpus/distilled.jsonl) problems kept)"
 kill $SERVER; wait $SERVER 2>/dev/null
 log "STEP2_DONE"

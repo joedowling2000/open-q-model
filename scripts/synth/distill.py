@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import Counter
 import re
 import sys
 import urllib.request
@@ -38,6 +39,10 @@ from pipeline import Q_PROMPT  # noqa: E402
 
 SEEDS = range(800000, 800060)
 LOOPY = re.compile(r"\b(while|do)\[")
+# q's reserved words and .q built-ins (from `.Q.res,key .q`). A problem whose
+# argument is called `log` gets `solve:{[log] ...}`, which cannot run, so such
+# names are renamed in the prompt. qcheck binds arguments by position.
+RESERVED = set(json.loads((ROOT / "scripts/synth/q_reserved.json").read_text()))
 
 
 def ask(url: str, model: str, prompt: str, n: int, temperature: float,
@@ -68,22 +73,41 @@ def distill(rec: dict, args) -> dict:
         return {"id": rec["id"], "ok": False, "reason": f"not discriminating ({share:.2f})"}
 
     python = reference_only(rec["python_src"])
+    q_args = [a + "Arg" if a in RESERVED else a for a in order]
     prompt = Q_PROMPT.format(description=rec["description"], python=python,
-                             args=";".join(order))
-    try:
-        replies = ask(args.url, args.model, prompt, args.samples, args.temperature,
-                      args.max_tokens)
-    except Exception as e:
-        return {"id": rec["id"], "ok": False, "reason": f"teacher error {type(e).__name__}"}
+                             args=";".join(q_args))
 
-    passing, failures = [], 0
-    for code in dict.fromkeys(filter(None, map(extract, replies))):  # distinct, in order
-        res = qcheck.check(code, rec["python_src"], order, SEEDS)
-        if res["ok"]:
-            passing.append({"q": code, "loops": bool(LOOPY.search(code))})
-        else:
-            failures += 1
-    base = {"id": rec["id"], "attempts": len(replies), "failed": failures,
+    # Adaptive: a first batch, and a second only if nothing in the first verified.
+    passing, kinds, n_replies, seen = [], Counter(), 0, set()
+    for n, temp in ((args.samples, args.temperature), (args.extra, args.temperature + 0.2)):
+        if passing or n == 0:
+            break
+        try:
+            replies = ask(args.url, args.model, prompt, n, temp, args.max_tokens)
+        except Exception as e:
+            return {"id": rec["id"], "ok": False, "reason": f"teacher error {type(e).__name__}"}
+        n_replies += len(replies)
+        for text in replies:
+            code = extract(text)
+            if code is None:
+                kinds["no solve block"] += 1
+                continue
+            if code in seen:
+                kinds["duplicate"] += 1
+                continue
+            seen.add(code)
+            res = qcheck.check(code, rec["python_src"], order, SEEDS)
+            if res["ok"]:
+                passing.append({"q": code, "loops": bool(LOOPY.search(code))})
+                kinds["pass"] += 1
+            elif res.get("reason"):
+                kinds[res["reason"]] += 1
+            else:
+                got = res["first_fail"]["got"]
+                kinds["q error" if isinstance(got, dict) and "__error__" in got
+                      else "wrong answer"] += 1
+    base = {"id": rec["id"], "attempts": n_replies, "outcomes": dict(kinds),
+            "renamed_args": q_args != order,
             "dominant_share": share, "teacher": args.model}
     if not passing:
         return {**base, "ok": False, "reason": "no attempt verified"}
@@ -106,7 +130,8 @@ def main() -> int:
     ap.add_argument("--out", default="corpus/distilled.jsonl")
     ap.add_argument("--only-unsolved", action="store_true",
                     help="skip records that already carry a verified q solution")
-    ap.add_argument("--samples", type=int, default=8)
+    ap.add_argument("--samples", type=int, default=4, help="first batch per problem")
+    ap.add_argument("--extra", type=int, default=4, help="second batch, only if none verified")
     ap.add_argument("--temperature", type=float, default=0.8)
     ap.add_argument("--max-tokens", type=int, default=1024)
     ap.add_argument("--workers", type=int, default=2)
