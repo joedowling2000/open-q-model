@@ -38,7 +38,7 @@ for i in "${!PARTS[@]}"; do
   fi
   out="$ROOT/gguf/$NAME-lora$([ ${#PARTS[@]} -gt 1 ] && echo "-$i").gguf"
   log "converting adapter $part to GGUF"
-  $PY /home/joedowling/Projects/serving/llama.cpp/convert_lora_to_gguf.py \
+  $PY scripts/train/convert_lora.py \
     "$part" --base "$SNAP" --outfile "$out" --outtype f16 \
     > "logs/convert-lora-$NAME-$i.log" 2>&1 || { log "adapter conversion failed"; exit 1; }
   LORAS+=("$out")
