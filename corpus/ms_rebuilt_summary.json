@@ -1,0 +1,31 @@
+{
+ "stage": "A \u2014 Morgan Stanley references rebuilt by qwen3.5-27b (amendment 6 and addendum)",
+ "problems": 678,
+ "kept": 615,
+ "rejected_by_reason": {
+  "missing block": 32,
+  "disagrees with Morgan Stanley's expected outputs": 13,
+  "disagrees with Morgan Stanley's Python on a generated input": 4,
+  "generator not discriminating (0.97)": 4,
+  "generator input outside Morgan Stanley's reference domain": 2,
+  "timed out": 2,
+  "raised IndexError": 1,
+  "generator not discriminating (0.95)": 1,
+  "generator not discriminating (1.00)": 1,
+  "raised ValueError": 1,
+  "generator not discriminating (0.93)": 1,
+  "generator not discriminating (0.92)": 1
+ },
+ "kept_by_difficulty": {
+  "easy": 236,
+  "medium": 310,
+  "hard": 69
+ },
+ "kept_on_attempt": {
+  "2": 12,
+  "0": 566,
+  "1": 37
+ },
+ "file_sha256": "bb4f3ed969f51c6d824293a3438b086aac0390b0859ec3aef0157e7696f14006",
+ "note": "The records themselves are not published: they carry Morgan Stanley's problem descriptions (LeetCode-derived text)."
+}

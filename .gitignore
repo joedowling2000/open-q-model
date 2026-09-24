@@ -36,3 +36,8 @@ out/lora-*/
 corpus/q_study_v5/*
 !corpus/q_study_v5/SHA256SUMS
 Q_Study_Data_Sanitised*.zip
+
+# Stage A output carries Morgan Stanley's (LeetCode-derived) problem text;
+# the summary and hash are committed, the records are not.
+corpus/ms_rebuilt.jsonl
+corpus/distilled.jsonl
