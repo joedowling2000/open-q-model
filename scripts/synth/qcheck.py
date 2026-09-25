@@ -75,7 +75,9 @@ def run_q(code: str, inputs: list[dict], keymode: str = "sym",
         fh.write("\n".join(lines))
         path = fh.name
     try:
-        r = subprocess.run([Q, path, "-q"], capture_output=True, text=True,
+        # -w caps the workspace (MB): a runaway solution raises wsfull instead of
+        # taking the machine down (a teacher attempt grew to 35 GB on 25 Sep).
+        r = subprocess.run([Q, path, "-q", "-w", "4000"], capture_output=True, text=True,
                            timeout=timeout, env=QENV)
         for line in (r.stdout + r.stderr).splitlines():
             if line.startswith("@@R@@"):
