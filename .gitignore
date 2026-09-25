@@ -41,3 +41,6 @@ Q_Study_Data_Sanitised*.zip
 # the summary and hash are committed, the records are not.
 corpus/ms_rebuilt.jsonl
 corpus/distilled.jsonl
+corpus/round2_records.jsonl
+corpus/vector_rewrites.jsonl
+corpus/generated_problems.jsonl
