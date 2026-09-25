@@ -80,7 +80,11 @@ def main() -> int:
 
     rng = random.Random(0)
     boots = sorted(pass1([rng.choice(rows) for _ in rows]) for _ in range(10000))
+    # Incident 4: also report the clean subset (no close training variant).
+    clean_ids = set(json.loads((ROOT / "corpus/heldout_v5_clean.json").read_text())["ids"])
+    clean = [r for r in rows if r["id"] in clean_ids]
     summary = {"model": args.model, "n_questions": len(rows), "n_samples": args.n,
+               "pass_at_1_clean": pass1(clean) if clean else None, "n_clean": len(clean),
                "pass_at_1": pass1(rows), "ci95": [boots[250], boots[9750]],
                "by_difficulty": {d: pass1([r for r in rows if r["difficulty"] == d])
                                  for d in ("medium", "hard")}}

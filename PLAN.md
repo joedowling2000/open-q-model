@@ -16,7 +16,7 @@ The question: **Morgan Stanley's qqWen is the only serious open q model, built o
 | 1. Assemble a corpus | ✅ measured: ~17M tokens usable |
 | 2. Synthetic data pipeline | 🔄 step 2 running: Morgan Stanley references (Qwen3.5-27B), then qqWen-72B distillation (amendments 5, 6) |
 | 3. Continued pretraining | ✅ gate A passed: pass@1 10.2% → 11.8%, paired diff +1.6 pts, 95% CI [+0.5, +2.8] |
-| 4. SFT | ✅ **gate B passed** (round 1, Q study data): pass@1 10.2% → 19.5%, paired diff +9.2 pts, 95% CI [+6.2, +12.8]; held-out 16.0% (medium 21.4%, hard 4.6%). Round 2 adds distilled data. |
+| 4. SFT | ✅ **gate B passed** (round 1, Q study data): pass@1 10.2% → 19.5%, paired diff +9.2 pts, 95% CI [+6.2, +12.8]; held-out 16.0% (clean subset, incident 4: 15.0%; medium 21.4%, hard 4.6%). Round 2 adds distilled data. |
 | 5. RL with execution rewards | ⬜ not started |
 | 6. Agent-mode evaluation | ⬜ not started (needs a new harness backend) |
 

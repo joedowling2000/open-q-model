@@ -215,7 +215,64 @@ paired difference +2.6 points, bootstrap 95% CI [+0.2, +5.3]. This was done to
 diagnose the failure, not to decide anything; gate A is judged only on the full
 164-problem run, and nothing about it was changed after the look.
 
+**4 — 2026-09-25: the held-out split let near-variants through.** Found while
+calibrating amendment 8's similarity filter, before round 2 existed.
+
+*What.* Amendment 7 grouped near-duplicates by identical q, identical Python,
+or a `similar_reference_ids` link. The Q study bank also contains reworded
+variants of the same task that share none of those. For example, held-out
+`question_0464` and bank `question_0144` and `question_0183` are all "a
+telemetry gateway normalises sensor-reading strings". 15 of the 75 held-out
+questions have a variant among the non-held-out questions at word-Jaccard
+> 0.40. All of those can reach training through the bank, the teacher, or
+expert iteration.
+
+*Size.* Round 1 scores 20.0% pass@1 on those 15 and 15.0% on the other 60,
+against 16.0% overall. The inflation is modest, but it would grow as
+distillation adds the siblings.
+
+*What changes.* A clean held-out subset is fixed now, before any round 2 result:
+the 60 questions with no variant above 0.40 (`corpus/heldout_v5_clean.json`,
+ids and hash committed). Every round reports both figures, and the clean one is
+the one that counts. Round 1, recomputed from its saved samples: 15.0% clean.
+The held-out set itself does not change. New problems generated under
+amendment 8 must also stay below 0.35 Jaccard to every held-out question.
+
+*What it does not change.* Gates A, B and C are measured on Q-HumanEval, which
+this does not touch.
+
 ## Amendments
+
+**8 — 2026-09-25: targeted distillation, and new problems from Qwen3.5-27B.**
+Decided before any of the problems it covers were generated, and before round 2
+SFT.
+
+*Evidence.* The teacher runs at ~16 tokens/s on the Spark (about 1.7 minutes
+per problem), so the planned 5–10k distilled problems would cost ~11 extra days.
+There are also no unsolved problems left to give it. It verified 481 of 615
+Morgan Stanley problems (78%), but only 8 of the first 33 unsolved Q study
+questions, and 79% of its verified solutions use `while` loops. qqWen itself
+reached 38.4% from ~678 SFT problems plus RL, so volume of distilled pairs is
+not what gate C most likely depends on.
+
+*What changes.*
+(i) **New problems.** Qwen3.5-27B, the open base model, writes new problems
+(description, Python reference, input generator), weighted toward the measured
+weak spots: hard problems, strings, type conversion and dict-shaped outputs.
+The target is ~3,000. A problem is kept only if its reference runs, its
+generator is discriminating (control 2), it passes the Q-HumanEval
+contamination check (control 1), and it is not a near-duplicate of any
+held-out question (amendment 7) or of an existing problem.
+(ii) **Student first.** The current best checkpoint attempts each new problem.
+Solutions that verify are its own output and count as expert iteration.
+(iii) **Teacher on failures only.** qqWen-72B-RL is asked only about problems
+the student failed. Its verified solutions go through the amendment 3 vector
+rewrite like all teacher output.
+(iv) **RL pool.** Every kept problem enters the amendment 4 RL prompt pool,
+whether or not anyone solved it.
+
+*What does not change.* Verification (60 fresh inputs, qcheck), the lineage
+rule as amended, the held-out set, the evaluation protocol and all three gates.
 
 **7 — 2026-09-23: an internal held-out set is fixed before any distillation.**
 Decided before any of the data in amendments 5 and 6 was generated or trained on.
