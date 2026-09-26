@@ -44,6 +44,15 @@ TEMPS = (0.2, 0.5, 0.7, 0.9, 1.1)
 
 
 def rewrite(rec: dict, url: str, model: str) -> dict:
+    # One bad record must not end the pass: the first run died at 109 of 673
+    # on a generator that raises for some seeds (randint on an empty range).
+    try:
+        return _rewrite(rec, url, model)
+    except Exception as e:
+        return {"id": rec["id"], "ok": False, "reason": f"reference error {type(e).__name__}"}
+
+
+def _rewrite(rec: dict, url: str, model: str) -> dict:
     order = qcheck.arg_order(rec)
     base = qcheck.check(rec["q_solution"], rec["python_src"], order, SEEDS)
     if not base["ok"]:

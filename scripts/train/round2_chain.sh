@@ -27,12 +27,19 @@ SERVER=$!
 for i in $(seq 180); do curl -sf http://127.0.0.1:8104/health > /dev/null && break; sleep 10; done
 $QPY scripts/synth/vector_rewrite.py --url http://127.0.0.1:8104/v1 --model qwen3.5-27b-sft-v5 \
   --in corpus/distilled.jsonl corpus/q_study_v5/questions.jsonl \
-  --workers 8 --out corpus/vector_rewrites.jsonl > logs/vector-rewrite.log 2>&1
-log "rewrite exited rc=$? — $(tail -1 logs/vector-rewrite.log)"
+  --workers 8 --out corpus/vector_rewrites.jsonl >> logs/vector-rewrite.log 2>&1
+rc=$?
 kill $SERVER; wait $SERVER 2>/dev/null; sleep 10
+log "rewrite exited rc=$rc — $(tail -1 logs/vector-rewrite.log)"
+[ $rc -eq 0 ] || { log "REWRITE_FAILED; stopping"; exit 1; }
 
 log "2. round 2 records and SFT data"
 python3 scripts/train/bank_to_records.py > logs/round2-records.log 2>&1
+rm -f corpus/disqualified.json
+python3 scripts/train/round2_records.py >> logs/round2-records.log 2>&1 || { log "records failed"; exit 1; }
+# Incident 2's standing release check: every generator on 200 unused seeds.
+QHOME=$HOME/.kx $QPY scripts/train/release_check.py corpus/round2_records.jsonl | tee -a logs/round2-records.log \
+  || { log "release check failed"; exit 1; }
 python3 scripts/train/round2_records.py >> logs/round2-records.log 2>&1 || { log "records failed"; exit 1; }
 $PY scripts/train/assemble_sft.py --in corpus/round2_records.jsonl --rejects /nonexistent \
   --out data/sft_r2 > logs/assemble-r2.log 2>&1 || { log "assembly failed"; exit 1; }

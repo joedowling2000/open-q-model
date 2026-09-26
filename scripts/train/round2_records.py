@@ -32,11 +32,16 @@ def main() -> int:
             if r["ok"]:
                 rewrites[r["id"]] = r["q"]
 
+    dq_path = ROOT / "corpus/disqualified.json"
+    disqualified = set(json.loads(dq_path.read_text())["disqualified"]) if dq_path.exists() else set()
     records, stats = [], Counter()
 
     def add(rec: dict, source: str) -> None:
         if rec["id"] in held:
             stats["refused: held out"] += 1
+            return
+        if rec["id"] in disqualified:          # release_check.py: flaky generator
+            stats["refused: failed release check"] += 1
             return
         q = rec["q_solution"]
         if rec["id"] in rewrites and LOOPY.search(q):

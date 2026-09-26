@@ -241,6 +241,21 @@ amendment 8 must also stay below 0.35 Jaccard to every held-out question.
 *What it does not change.* Gates A, B and C are measured on Q-HumanEval, which
 this does not touch.
 
+**5 — 2026-09-26: round 2 started on unchecked data; stopped and restarted.**
+A distilled problem's generator raised on some seeds (`randint` on an empty
+range), which crashed the vector rewrite pass at 109 of 673. The chain did not
+stop on the failure: it went on to assemble data and start round 2 SFT with 19
+rewrites and no release check. A scan of every round 2 record found 2 of 2129
+with flaky generators (`ms__element-appearing-more-than-25-in-sorted-array`,
+`ms__validate-binary-tree-nodes`). By incident 2's rule, their verification is
+not reproducible.
+
+*What changes.* The aborted SFT run is discarded unscored. The rewrite pass
+catches per-record errors, and the chain stops on any failed stage.
+`release_check.py` (200 unused seeds per generator) now runs before every SFT
+assembly and excludes what fails. Round 2 restarts from the rewrite pass. Cost:
+~5 hours. No gate, metric or evaluation changes.
+
 ## Amendments
 
 **8 — 2026-09-25: targeted distillation, and new problems from Qwen3.5-27B.**
