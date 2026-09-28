@@ -44,3 +44,7 @@ corpus/distilled.jsonl
 corpus/round2_records.jsonl
 corpus/vector_rewrites.jsonl
 corpus/generated_problems.jsonl
+corpus/round3_records.jsonl
+corpus/student_r2.jsonl
+corpus/teacher_r3.jsonl
+corpus/teacher_targets_r3.jsonl

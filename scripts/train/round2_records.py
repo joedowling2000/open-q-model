@@ -13,6 +13,7 @@ control 6 makes it a stated quality measure.
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from collections import Counter
@@ -23,6 +24,11 @@ LOOPY = re.compile(r"\b(while|do)\[")
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--solved", nargs="+", default=["corpus/distilled.jsonl"],
+                    help="verified-solution files from distill.py (teacher or student)")
+    ap.add_argument("--out", default="corpus/round2_records.jsonl")
+    a = ap.parse_args()
     held = set(json.loads((ROOT / "corpus/heldout_v5.json").read_text())["ids"])
     rw_path = ROOT / "corpus/vector_rewrites.jsonl"
     rewrites = {}
@@ -53,18 +59,22 @@ def main() -> int:
 
     for l in (ROOT / "corpus/q_study_v5/sft_records.jsonl").open():
         add(json.loads(l), "q_study_v5")
-    for l in (ROOT / "corpus/distilled.jsonl").open():
-        d = json.loads(l)
-        if not d["ok"]:
+    solved = []
+    for path in a.solved:
+        solved += [(json.loads(l), Path(path).stem) for l in (ROOT / path).open()]
+    seen = set()
+    for d, stem in solved:
+        if not d["ok"] or d["id"] in seen:
             continue
+        seen.add(d["id"])
         add({"id": d["id"], "description": d["description"],
              "python_solution": d["python_solution"], "q_solution": d["q_solution"],
              "tasks": ["desc2q", "py2q", "q2py", "q2desc"],
              "topic": d.get("topic"), "difficulty": d.get("difficulty"),
              "source": "distilled:" + str(d.get("source")), "teacher": d.get("teacher")},
-            "distilled")
+            "solved:" + stem)
 
-    with (ROOT / "corpus/round2_records.jsonl").open("w") as fh:
+    with (ROOT / a.out).open("w") as fh:
         for r in records:
             fh.write(json.dumps(r) + "\n")
     stats["records"] = len(records)
