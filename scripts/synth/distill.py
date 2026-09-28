@@ -63,6 +63,19 @@ def extract(text: str) -> str | None:
 
 
 def distill(rec: dict, args) -> dict:
+    # One bad record must never end a run (incident 5, and again on 28 Sep:
+    # a generated problem with None among its inputs, which has no q literal).
+    try:
+        return _distill(rec, args)
+    except TypeError as e:
+        if "no q literal" in str(e):
+            return {"id": rec["id"], "ok": False, "reason": "input not representable in q"}
+        return {"id": rec["id"], "ok": False, "reason": f"error {type(e).__name__}"}
+    except Exception as e:
+        return {"id": rec["id"], "ok": False, "reason": f"error {type(e).__name__}"}
+
+
+def _distill(rec: dict, args) -> dict:
     order = qcheck.arg_order(rec)
     try:
         _, expected = qcheck.gen_inputs(rec["python_src"], order, SEEDS)
