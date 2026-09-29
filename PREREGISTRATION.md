@@ -289,6 +289,13 @@ whether or not anyone solved it.
 *What does not change.* Verification (60 fresh inputs, qcheck), the lineage
 rule as amended, the held-out set, the evaluation protocol and all three gates.
 
+*Addendum, 2026-09-29, during round 3.* "The student attempts each new
+problem" becomes "as many as 12 hours allow", and the teacher's cap drops from
+24 to 12 hours. With two LoRA adapters applied at run time, decoding runs ~1
+token/s per slot, so all 3010 problems would take ~50 more hours for the
+student alone. Problems not attempted still join the RL pool, where the policy
+attempts them anyway. Chosen before any round 3 result.
+
 **7 — 2026-09-23: an internal held-out set is fixed before any distillation.**
 Decided before any of the data in amendments 5 and 6 was generated or trained on.
 

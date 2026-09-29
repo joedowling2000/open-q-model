@@ -35,13 +35,18 @@ serve_student() {
 # performance-core clusters were tripping the thermal guard every ~9 s.
 log "1. student attempts the generated problems"
 serve_student
-$QPY scripts/synth/distill.py --url http://127.0.0.1:8105/v1 --model $STUDENT \
+# Capped: with two LoRA adapters applied at run time, decoding runs ~1 tok/s per
+# slot, and all 3010 problems would take ~50 more hours. Problems not attempted
+# here still go to the RL pool, where the model attempts them anyway.
+timeout "${STUDENT_CAP:-12h}" $QPY scripts/synth/distill.py --url http://127.0.0.1:8105/v1 --model $STUDENT \
   --in corpus/generated_problems.jsonl --samples 4 --extra 0 --workers 8 \
-  --out corpus/student_r2.jsonl >> logs/student-r2.log 2>&1 || die "STUDENT_FAILED"
+  --out corpus/student_r2.jsonl >> logs/student-r2.log 2>&1
+rc=$?
 kill $SERVER; wait $SERVER 2>/dev/null; sleep 10
+[ $rc -eq 0 ] || [ $rc -eq 124 ] || die "STUDENT_FAILED rc=$rc"
 log "student: $(tail -1 logs/student-r2.log)"
 
-log "2. teacher on the student's failures (24 h cap, resumable)"
+log "2. teacher on the student's failures (12 h cap, resumable)"
 python3 - <<'PY'
 import json
 fails = {json.loads(l)["id"] for l in open("corpus/student_r2.jsonl")
@@ -56,13 +61,13 @@ PY
 bash scripts/serve.sh qqwen-72b-rl 8103 16 > logs/serve-qqwen-72b-rl-r3.log 2>&1 &
 SERVER=$!
 for i in $(seq 180); do curl -sf http://127.0.0.1:8103/health > /dev/null && break; sleep 10; done
-timeout 24h $QPY scripts/synth/distill.py --url http://127.0.0.1:8103/v1 --model qqwen-72b-rl \
+timeout "${TEACHER_CAP:-12h}" $QPY scripts/synth/distill.py --url http://127.0.0.1:8103/v1 --model qqwen-72b-rl \
   --in corpus/teacher_targets_r3.jsonl --samples 4 --extra 4 --workers 4 \
   --out corpus/teacher_r3.jsonl >> logs/teacher-r3.log 2>&1
 rc=$?
 kill $SERVER; wait $SERVER 2>/dev/null; sleep 10
 [ $rc -eq 0 ] || [ $rc -eq 124 ] || die "TEACHER_FAILED rc=$rc"
-log "teacher: rc=$rc (124 = hit the 24 h cap), $(grep -c '"ok": true' corpus/teacher_r3.jsonl) kept"
+log "teacher: rc=$rc (124 = hit the cap), $(grep -c '"ok": true' corpus/teacher_r3.jsonl) kept"
 
 log "3. vector rewrite of new loop solutions"
 serve_student
