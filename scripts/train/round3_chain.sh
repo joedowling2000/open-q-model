@@ -21,17 +21,22 @@ serve_student() {
     -m gguf/qwen3.5-27b-q8_0.gguf \
     --lora gguf/qwen3.5-27b-cpt-lora.gguf,gguf/qwen3.5-27b-sft-r2-lora-1.gguf \
     --host 127.0.0.1 --port 8105 --alias $STUDENT --reasoning off \
-    -ngl 999 -t 6 -tb 6 -c $((2048 * 16)) -np 16 --cont-batching --no-webui \
+    -ngl 999 -t 6 -tb 6 -c $((2048 * 32)) -np 32 --cont-batching --no-webui \
     > logs/serve-student-r2.log 2>&1 &
   SERVER=$!
   for i in $(seq 180); do curl -sf http://127.0.0.1:8105/health > /dev/null && return 0; sleep 10; done
   die "student server never came up"
 }
 
+# Student: one batch of 4 (its failures go to the teacher, which gets 4+4),
+# 32 slots so more requests batch together. Measured on 29 Sep: 16 slots and
+# 4+4 attempts ran at ~24 tok/s, and 67% of attempts went to problems it failed.
+# Run the chain pinned to the efficiency cores (taskset -c 0-4,10-14): the
+# performance-core clusters were tripping the thermal guard every ~9 s.
 log "1. student attempts the generated problems"
 serve_student
 $QPY scripts/synth/distill.py --url http://127.0.0.1:8105/v1 --model $STUDENT \
-  --in corpus/generated_problems.jsonl --samples 4 --extra 4 --workers 4 \
+  --in corpus/generated_problems.jsonl --samples 4 --extra 0 --workers 8 \
   --out corpus/student_r2.jsonl >> logs/student-r2.log 2>&1 || die "STUDENT_FAILED"
 kill $SERVER; wait $SERVER 2>/dev/null; sleep 10
 log "student: $(tail -1 logs/student-r2.log)"
