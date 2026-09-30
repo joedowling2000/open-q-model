@@ -256,6 +256,17 @@ catches per-record errors, and the chain stops on any failed stage.
 assembly and excludes what fails. Round 2 restarts from the rewrite pass. Cost:
 ~5 hours. No gate, metric or evaluation changes.
 
+**6 — 2026-09-30: three student solutions failed re-verification and were in
+round 3's data.** The vector rewrite pass re-runs each loop solution on 40 fresh
+inputs before rewriting it. Three of the round 2 model's own solutions to
+generated problems (`gen__3dbaf7bb6d26`, `gen__8e1daa2614ca`,
+`gen__593e002f475e`) passed their 60-input acceptance but failed this re-check.
+They were accepted on luck, which is incident 2's failure mode. The record
+builder did not exclude them, and round 3 SFT had started (step 242 of 1096).
+As at incident 5, the run was stopped and discarded unscored. Solutions that
+fail any re-verification are now excluded with the release-check failures, and
+round 3 restarts at the records step (2844 records). Cost: ~3 hours.
+
 ## Amendments
 
 **8 — 2026-09-25: targeted distillation, and new problems from Qwen3.5-27B.**

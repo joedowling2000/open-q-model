@@ -40,6 +40,13 @@ def main() -> int:
 
     dq_path = ROOT / "corpus/disqualified.json"
     disqualified = set(json.loads(dq_path.read_text())["disqualified"]) if dq_path.exists() else set()
+    # A solution the rewrite pass re-ran on 40 fresh inputs and found wrong was
+    # accepted on luck (incident 2's failure mode). It is excluded, not trained on.
+    failed_recheck = set()
+    if rw_path.exists():
+        failed_recheck = {json.loads(l)["id"] for l in rw_path.open()
+                          if json.loads(l).get("reason") == "ORIGINAL FAILED on fresh inputs"}
+    disqualified |= failed_recheck
     records, stats = [], Counter()
 
     def add(rec: dict, source: str) -> None:
@@ -47,7 +54,7 @@ def main() -> int:
             stats["refused: held out"] += 1
             return
         if rec["id"] in disqualified:          # release_check.py: flaky generator
-            stats["refused: failed release check"] += 1
+            stats["refused: failed release check or re-verification"] += 1
             return
         q = rec["q_solution"]
         if rec["id"] in rewrites and LOOPY.search(q):

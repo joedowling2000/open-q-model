@@ -33,6 +33,9 @@ serve_student() {
 # 4+4 attempts ran at ~24 tok/s, and 67% of attempts went to problems it failed.
 # Run the chain pinned to the efficiency cores (taskset -c 0-4,10-14): the
 # performance-core clusters were tripping the thermal guard every ~9 s.
+# FROM=4 resumes at the records step once stages 1-3 are complete.
+FROM=${FROM:-1}
+if [ "$FROM" -le 1 ]; then
 log "1. student attempts the generated problems"
 serve_student
 # Capped: with two LoRA adapters applied at run time, decoding runs ~1 tok/s per
@@ -45,7 +48,9 @@ rc=$?
 kill $SERVER; wait $SERVER 2>/dev/null; sleep 10
 [ $rc -eq 0 ] || [ $rc -eq 124 ] || die "STUDENT_FAILED rc=$rc"
 log "student: $(tail -1 logs/student-r2.log)"
+fi
 
+if [ "$FROM" -le 2 ]; then
 log "2. teacher on the student's failures (12 h cap, resumable)"
 python3 - <<'PY'
 import json
@@ -68,7 +73,9 @@ rc=$?
 kill $SERVER; wait $SERVER 2>/dev/null; sleep 10
 [ $rc -eq 0 ] || [ $rc -eq 124 ] || die "TEACHER_FAILED rc=$rc"
 log "teacher: rc=$rc (124 = hit the cap), $(grep -c '"ok": true' corpus/teacher_r3.jsonl) kept"
+fi
 
+if [ "$FROM" -le 3 ]; then
 log "3. vector rewrite of new loop solutions"
 serve_student
 $QPY scripts/synth/vector_rewrite.py --url http://127.0.0.1:8105/v1 --model $STUDENT \
@@ -76,6 +83,7 @@ $QPY scripts/synth/vector_rewrite.py --url http://127.0.0.1:8105/v1 --model $STU
   --out corpus/vector_rewrites.jsonl >> logs/vector-rewrite.log 2>&1 || die "REWRITE_FAILED"
 kill $SERVER; wait $SERVER 2>/dev/null; sleep 10
 log "rewrite: $(tail -1 logs/vector-rewrite.log)"
+fi
 
 log "4. records, release check, SFT round 3"
 SOLVED="corpus/distilled.jsonl corpus/student_r2.jsonl corpus/teacher_r3.jsonl"
