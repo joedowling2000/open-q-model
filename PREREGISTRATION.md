@@ -269,6 +269,26 @@ round 3 restarts at the records step (2844 records). Cost: ~3 hours.
 
 ## Amendments
 
+**9 — 2026-10-01: the RL pilot runs on the 27B, not a 9B.** Decided before any
+RL code ran.
+
+*Why.* Amendment 4 required RL to be proven at 9B before any 27B run, to find
+bugs and bad settings cheaply. No fine-tuned 9B exists. Making a comparable one
+(download, SFT on round 3's data, scoring) costs ~3 days before the first RL
+step, and its result would still have to be confirmed on the 27B, which is the
+model the claim is about.
+
+*What changes.* RL starts from the round 3 checkpoint, merged into one Q8_0
+GGUF so that only the new RL adapter is applied at run time. The first ~5
+rounds (~1 day) are a pilot. RL continues only if (i) the mean training reward
+on its own prompts is rising, and (ii) the clean held-out pass@1 (incident 4)
+after the pilot is not below round 3's 18.0% by more than its bootstrap noise,
+i.e. the CI on the difference does not lie entirely below zero. A pilot that
+fails either test stops RL for diagnosis.
+
+*What does not change.* The reward (qcheck on fresh generated inputs), the
+prompt pool's exclusions (Q-HumanEval and the held-out set), and gate C.
+
 **8 — 2026-09-25: targeted distillation, and new problems from Qwen3.5-27B.**
 Decided before any of the problems it covers were generated, and before round 2
 SFT.
