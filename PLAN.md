@@ -16,7 +16,7 @@ The question: **Morgan Stanley's qqWen is the only serious open q model, built o
 | 1. Assemble a corpus | ✅ measured: ~17M tokens usable |
 | 2. Synthetic data pipeline | ✅ round 2 distillation: 615/678 Morgan Stanley references rebuilt, 578/889 problems verified from qqWen-72B. 🔄 amendment 8 problem generation next |
 | 3. Continued pretraining | ✅ gate A passed: pass@1 10.2% → 11.8%, paired diff +1.6 pts, 95% CI [+0.5, +2.8] |
-| 4. SFT | ✅ **gate B passed** (round 1, Q study data): pass@1 10.2% → 19.5%, paired diff +9.2 pts, 95% CI [+6.2, +12.8]; held-out 16.0% (clean subset, incident 4: 15.0%; medium 21.4%, hard 4.6%). **Round 2** (+578 distilled problems, 85 vector rewrites): **38.25%**, +18.8 pts over round 1 [+14.4, +23.1]; level with qqWen-32B (−0.1 [−5.4, +5.2]); held-out 14.8% (clean 12.7%). Gate C not yet met (needs CI lower bound > 38.4%). |
+| 4. SFT | ✅ **gate B passed** (round 1, Q study data): pass@1 10.2% → 19.5%, paired diff +9.2 pts, 95% CI [+6.2, +12.8]; held-out 16.0% (clean subset, incident 4: 15.0%; medium 21.4%, hard 4.6%). **Round 2** (+578 distilled problems, 85 vector rewrites): **38.25%**, +18.8 pts over round 1 [+14.4, +23.1]; level with qqWen-32B (−0.1 [−5.4, +5.2]); held-out 14.8% (clean 12.7%). Gate C not yet met (needs CI lower bound > 38.4%). **Round 3** (+715 of the model's own verified solutions, amendment 8): **39.8%** [34.1, 45.7], +1.4 pts vs qqWen-32B [−4.7, +7.7]; held-out clean 18.0% (+5.3 vs round 2 [+1.3, +9.5]); loop rate 26.1%. Gate C not met. |
 | 5. RL with execution rewards | ⬜ not started |
 | 6. Agent-mode evaluation | ⬜ not started (needs a new harness backend) |
 
