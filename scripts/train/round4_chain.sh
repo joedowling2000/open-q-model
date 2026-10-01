@@ -6,7 +6,12 @@
 #   3. records + release check + harness-format rendering (each rename re-verified)
 #   4. SFT on top of merged round 3: 1 epoch, prose + harness prompts
 #   5. merge, convert, score (Q-HumanEval + held-out)
-# Run pinned: taskset -c 0-4,10-14. Stops on the first failure. FROM=n resumes.
+# Do NOT pin the whole chain: llama.cpp's decode for this model uses CPU threads,
+# and on the efficiency cores it fell from ~1.65 to 0.83 tok/s per slot (1 Oct).
+# Only the CPU-heavy verification (q + Python) is pinned to the efficiency cores,
+# which is what was tripping the thermal guard (29 Sep). Stops on the first
+# failure. FROM=n resumes.
+E="taskset -c 0-4,10-14"
 set -uo pipefail
 cd /home/joedowling/Projects/qeval
 PY=/home/joedowling/venvs/jlens/bin/python
@@ -19,7 +24,7 @@ die() { log "$*"; exit 1; }
 up() { for i in $(seq 180); do curl -sf "http://127.0.0.1:$1/health" > /dev/null && return 0; sleep 10; done; die "server on $1 never came up"; }
 
 if [ "$FROM" -le 0 ]; then
-while systemctl --user list-units 'run-qevalmerged*' --no-legend | grep -q running; do sleep 120; done
+while systemctl --user list-units 'run-qevalmerged2*' --no-legend | grep -q running; do sleep 120; done
 P1=$(python3 -c "import json;print(json.load(open('results/qwen3.5-27b-r3-merged-scored.json'))['pass_at_1'])") \
   || die "merged round 3 has no score"
 log "merged round 3 pass@1 = $P1 (adapters at run time: 0.398)"
@@ -29,7 +34,7 @@ fi
 if [ "$FROM" -le 1 ]; then
 log "1. MBPP judge + references (qwen3.5-27b)"
 bash scripts/serve.sh qwen3.5-27b 8101 8 > logs/serve-qwen3.5-27b-mbpp.log 2>&1 & S=$!; up 8101
-$QPY -W ignore scripts/synth/mbpp_reference.py --url http://127.0.0.1:8101/v1 --model qwen3.5-27b \
+$E $QPY -W ignore scripts/synth/mbpp_reference.py --url http://127.0.0.1:8101/v1 --model qwen3.5-27b \
   --workers 8 --out corpus/mbpp_rebuilt.jsonl >> logs/mbpp-reference.log 2>&1 || die "MBPP_FAILED"
 kill $S; wait $S 2>/dev/null; sleep 10
 log "mbpp: $(grep -c '"ok": true' corpus/mbpp_rebuilt.jsonl) kept; $(grep -c 'judged the same task' corpus/mbpp_rebuilt.jsonl) judged same as a benchmark task"
@@ -40,7 +45,7 @@ log "2. merged round 3 attempts MBPP"
 $LC/build/bin/llama-server -m gguf/qwen3.5-27b-r3-q8_0.gguf --host 127.0.0.1 --port 8106 \
   --alias qwen3.5-27b-r3 --reasoning off -ngl 999 -t 6 -tb 6 -c $((2048 * 32)) -np 32 \
   --cont-batching --no-webui > logs/serve-r3-merged-student.log 2>&1 & S=$!; up 8106
-$QPY scripts/synth/distill.py --url http://127.0.0.1:8106/v1 --model qwen3.5-27b-r3 \
+$E $QPY scripts/synth/distill.py --url http://127.0.0.1:8106/v1 --model qwen3.5-27b-r3 \
   --in corpus/mbpp_rebuilt.jsonl --samples 4 --extra 4 --workers 8 \
   --out corpus/student_mbpp.jsonl >> logs/student-mbpp.log 2>&1 || die "STUDENT_FAILED"
 kill $S; wait $S 2>/dev/null; sleep 10
@@ -53,9 +58,9 @@ SOLVED="corpus/distilled.jsonl corpus/student_r2.jsonl corpus/teacher_r3.jsonl c
 python3 scripts/train/bank_to_records.py > logs/round4-records.log 2>&1 || die "bank records failed"
 rm -f corpus/disqualified.json
 python3 scripts/train/round2_records.py --solved $SOLVED --out corpus/round4_base_records.jsonl >> logs/round4-records.log 2>&1 || die "records failed"
-$QPY scripts/train/release_check.py corpus/round4_base_records.jsonl | tee -a logs/round4-records.log || die "release check failed"
+$E $QPY scripts/train/release_check.py corpus/round4_base_records.jsonl | tee -a logs/round4-records.log || die "release check failed"
 python3 scripts/train/round2_records.py --solved $SOLVED --out corpus/round4_base_records.jsonl >> logs/round4-records.log 2>&1 || die "records failed"
-$QPY scripts/train/round4_records.py | tee -a logs/round4-records.log || die "rendering failed"
+$E $QPY scripts/train/round4_records.py | tee -a logs/round4-records.log || die "rendering failed"
 $PY scripts/train/assemble_sft.py --in corpus/round4_records.jsonl --rejects /nonexistent \
   --out data/sft_r4 > logs/assemble-r4.log 2>&1 || die "assembly failed"
 grep -E '"kept_by_task"|dropped_contaminated' -A6 logs/assemble-r4.log | head -9
