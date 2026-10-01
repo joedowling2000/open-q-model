@@ -20,7 +20,7 @@ ADAPTER="$1"; NAME="$2"; SAMPLES="${3:-30}"
 ROOT=/home/joedowling/Projects/qeval
 PY=/home/joedowling/venvs/jlens/bin/python
 PORT=8102
-BASE_GGUF="$ROOT/gguf/qwen3.5-27b-q8_0.gguf"
+BASE_GGUF="${BASE_GGUF:-$ROOT/gguf/qwen3.5-27b-q8_0.gguf}"   # a merged model can replace the base
 cd "$ROOT"
 
 log() { echo "[$(date +%H:%M:%S)] $*"; }
@@ -29,6 +29,7 @@ SNAP=$(ls -d "$HOME"/.cache/huggingface/hub/models--Qwen--Qwen3.5-27B/snapshots/
 [ -z "$SNAP" ] && { log "base HF snapshot missing; needed for adapter conversion"; exit 1; }
 
 LORAS=()
+[ "$ADAPTER" = "none" ] && ADAPTER=""        # merged model: nothing applied at run time
 IFS=',' read -ra PARTS <<< "$ADAPTER"
 for i in "${!PARTS[@]}"; do
   part="${PARTS[$i]}"
@@ -44,11 +45,12 @@ for i in "${!PARTS[@]}"; do
   LORAS+=("$out")
 done
 LORA_ARG=$(IFS=','; echo "${LORAS[*]}")
-LORA_GGUF="${LORAS[-1]}"
+LORA_FLAG=()
+[ -n "$LORA_ARG" ] && LORA_FLAG=(--lora "$LORA_ARG")
 
 log "serving base + adapter"
 setsid /home/joedowling/Projects/serving/llama.cpp/build/bin/llama-server \
-  -m "$BASE_GGUF" --lora "$LORA_ARG" \
+  -m "$BASE_GGUF" "${LORA_FLAG[@]}" \
   --host 127.0.0.1 --port $PORT --alias "$NAME" --reasoning off \
   -ngl 999 -t 6 -tb 6 -c $((2048 * SAMPLES)) -np "$SAMPLES" --cont-batching --no-webui \
   > "logs/serve-$NAME.log" 2>&1 &
