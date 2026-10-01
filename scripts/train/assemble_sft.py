@@ -179,6 +179,11 @@ def main() -> int:
                 continue
             samples.append({"task": name, "problem": rec["id"],
                             "prompt": fn(rec)[0], "response": fn(rec)[1]})
+        # Amendment 10 (i): the same problem in the benchmark's own prompt format,
+        # rendered and re-verified by harness_format.py.
+        if rec.get("harness_prompt"):
+            samples.append({"task": "harness", "problem": rec["id"],
+                            "prompt": rec["harness_prompt"], "response": rec["harness_response"]})
         got = vectorise(rec)
         if got:
             samples.append({"task": "vectorise", "problem": rec["id"],

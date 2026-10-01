@@ -52,9 +52,13 @@ def load_deltas(adapter: Path) -> dict[str, tuple[torch.Tensor, torch.Tensor, fl
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
+    ap.add_argument("--base", default=None, help="checkpoint dir to merge into (default: Qwen3.5-27B)")
     ap.add_argument("adapters", nargs="+")
     args = ap.parse_args()
 
+    global SNAP
+    if args.base:
+        SNAP = Path(args.base)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     deltas = [load_deltas(Path(a)) for a in args.adapters]
