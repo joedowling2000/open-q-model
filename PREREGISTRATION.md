@@ -269,6 +269,44 @@ round 3 restarts at the records step (2844 records). Cost: ~3 hours.
 
 ## Amendments
 
+**10 — 2026-10-01: train in the benchmark's prompt format; MBPP seeds; RL
+reward shaping and prompt weighting.** Decided before any of it ran.
+
+*Evidence.* Round 3's failed benchmark samples: 75% wrong answers, 22% q
+runtime errors (type 496, length 127, rank 25), 1.4% truncated at 512 tokens.
+The harness prompts with its own template: "You are an expert q/kdb+
+programmer. Write idiomatic q function to complete the following task:", then
+a q-doc comment stub (`// @overview`, `// @param x {int[]} ...`,
+`// @return {...}`) and a named function with an empty body, using parameters
+x/y/z. Every training prompt so far said "Write a q (kdb+) function `solve` for
+this problem" with prose only. The model has never been trained in the format
+it is tested in.
+
+*What changes.*
+(i) **Format alignment.** Every training problem is also rendered in the
+harness's template: a named function, x/y/z parameters where there are at most
+three, and type tags in the benchmark's vocabulary inferred from the problem's
+generated inputs. The target is the verified solution renamed accordingly and
+re-verified. Only the template is used. It is public harness code, and no
+benchmark problem, test or solution enters training.
+(ii) **MBPP seeds.** The ~970 MBPP problem statements (CC-BY-4.0) are disclosed
+generation seeds, like Morgan Stanley's descriptions. Qwen3.5-27B writes the
+reference and generator, MBPP's own tests only check the reference, and the
+Q-HumanEval contamination filter applies.
+(iii) **Round 4 SFT** on round 3's records plus solved MBPP problems, in both
+formats, before RL.
+(iv) **RL reward.** 1.0 if all fresh inputs pass; otherwise 0.2 × the fraction
+passed (0 for code that does not load). This replaces amendment 4's strict 0/1,
+so that problems the model never fully solves still give a learning signal.
+(v) **RL prompts** in the harness's format, weighted toward problems whose
+current pass rate is strictly between 0 and 1, and toward MBPP and Morgan
+Stanley problems, which are closest to the benchmark's style.
+
+*What does not change.* The evaluation protocol: one-shot, 512 tokens,
+temperature 0.8, 30 samples, Q8_0, reasoning off. Also gates A to C, the
+held-out set, and that checkpoints are selected on the held-out set, never on
+Q-HumanEval.
+
 **9 — 2026-10-01: the RL pilot runs on the 27B, not a 9B.** Decided before any
 RL code ran.
 
