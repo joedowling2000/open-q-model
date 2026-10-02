@@ -34,7 +34,7 @@ def sources() -> dict:
         for l in (ROOT / "corpus/q_study_v5" / f).open():
             r = json.loads(l)
             recs[r["id"]] = r
-    for f in ("distilled.jsonl", "generated_problems.jsonl"):
+    for f in ("distilled.jsonl", "generated_problems.jsonl", "mbpp_rebuilt.jsonl"):
         p = ROOT / "corpus" / f
         if p.exists():
             for l in p.open():
@@ -65,6 +65,9 @@ def crashes(rec: dict) -> str | None:
 def main() -> int:
     ids = [json.loads(l)["id"] for l in (ROOT / sys.argv[1]).open()]
     recs = sources()
+    unknown = [i for i in ids if i not in recs]
+    if unknown:   # a record whose generator cannot be found cannot be checked
+        raise SystemExit(f"no source for {len(unknown)} records, e.g. {unknown[:3]}")
     bad = {i: why for i in ids if (why := crashes(recs[i]))}
     OUT.write_text(json.dumps({"seeds": [SEEDS.start, SEEDS.stop - 1],
                                "checked": len(ids), "disqualified": bad}, indent=1))
