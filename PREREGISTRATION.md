@@ -269,6 +269,36 @@ round 3 restarts at the records step (2844 records). Cost: ~3 hours.
 
 ## Amendments
 
+**11 — 2026-10-02: screen two coding-specialist bases before RL.** Written
+before either model was downloaded or measured.
+
+*Why.* Qwen3.5-27B was chosen as the strongest general model we measured. No
+coding specialist was tested. Qwen3-Coder-30B-A3B and Qwen3-Coder-Next (both
+Apache-2.0, mixture-of-experts, ~3B parameters active per token) could
+generate several times faster on this bandwidth-bound machine, which matters
+because RL is mostly generation. Their q ability is unknown.
+
+*Screen.* Each is scored once on Q-HumanEval under the fixed protocol (one-shot,
+no tools, 512 tokens, temperature 0.8, Q8_0, reasoning off), with 10 samples
+per problem rather than 30. pass@1 is unbiased at either count, and this is a
+screen, not a reported comparison. Aggregate generation throughput is measured
+from the server's own timings at 30 parallel slots, against the 27B's ~30
+tokens/s at the same setting.
+
+*Decision rule, fixed now.* A coder model qualifies only if (a) its screen
+pass@1 is at least 15% (the 27B base scored 10.2%), and (b) its aggregate
+throughput is at least 3x the 27B's. If neither qualifies, RL starts from round 4
+on the 27B as planned. If one or both qualify, the best qualifying model (by
+pass@1) is fine-tuned on round 4's data with the same recipe and compared with
+round 4 on the clean held-out set (incident 4). RL starts from whichever scores
+higher there. The benchmark is never used to choose.
+
+*What a switch would mean.* The original claim is about Qwen3.5-27B, and its
+results stand and are reported as they are. A model built on a coder base
+would be reported as a second, separately labelled arm: "the same pipeline on
+Qwen3-Coder-…". Gates, lineage rules and the evaluation protocol apply to it
+unchanged.
+
 **10 — 2026-10-01: train in the benchmark's prompt format; MBPP seeds; RL
 reward shaping and prompt weighting.** Decided before any of it ran.
 
