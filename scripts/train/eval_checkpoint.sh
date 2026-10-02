@@ -52,7 +52,7 @@ log "serving base + adapter"
 setsid /home/joedowling/Projects/serving/llama.cpp/build/bin/llama-server \
   -m "$BASE_GGUF" "${LORA_FLAG[@]}" \
   --host 127.0.0.1 --port $PORT --alias "$NAME" --reasoning off \
-  -ngl 999 -t 6 -tb 6 -c $((2048 * SAMPLES)) -np "$SAMPLES" --cont-batching --no-webui \
+  -ngl 999 -t 6 -tb 6 -c $((2048 * ${SLOTS:-$SAMPLES})) -np "${SLOTS:-$SAMPLES}" --cont-batching --no-webui \
   > "logs/serve-$NAME.log" 2>&1 &
 tries=0
 until curl -sf "http://127.0.0.1:$PORT/health" > /dev/null; do
