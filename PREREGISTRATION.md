@@ -267,6 +267,41 @@ As at incident 5, the run was stopped and discarded unscored. Solutions that
 fail any re-verification are now excluded with the release-check failures, and
 round 3 restarts at the records step (2844 records). Cost: ~3 hours.
 
+## Results
+
+**Gate C — met, 2026-10-03, by round 4** (`qwen3.5-27b-r4`: round 3 merged,
+plus SFT under amendment 10). Q-HumanEval, 164 problems × 30 samples, fixed
+protocol: one-shot, no tools, 512 tokens, temperature 0.8, Q8_0, reasoning off.
+
+| | pass@1 | 95% CI | pass@10 |
+|---|---|---|---|
+| Qwen3.5-27B base | 10.2% | | 23.6% |
+| qqWen-32B-RL (target, measured here) | 38.4% | | 59.4% |
+| **Round 4** | **46.75%** | **[41.0, 52.6]** | **75.7%** |
+
+- The CI lower bound (41.0%) is above qqWen-32B-RL's point estimate (38.4%):
+  the gate C condition.
+- Paired over problems: vs qqWen-32B-RL +8.4 pts [+2.2, +14.7], better on 76
+  and worse on 52; vs round 3 +7.3 [+4.4, +10.2]; vs base +36.5 [+31.1, +41.8].
+- Contamination audit. Benchmark-to-training nearest neighbours, by word
+  Jaccard with boilerplate removed, are related but different short tasks
+  (e.g. MBPP "maximum of two numbers" vs "maximum element in a list"). The
+  gain is broad (+7.0 pts on the 155 problems with no neighbour above 0.3).
+  Sensitivity: excluding all 9 problems with any neighbour above 0.3, pass@1 is
+  44.7%, CI [38.9, 50.6]. The lower bound still exceeds 38.4%. MBPP problems
+  judged the same task as a benchmark problem (8) were removed before use.
+- Held-out set (amendment 7, clean subset per incident 4): 18.2%, against
+  round 3's 18.5%, so unchanged. The gain is specific to benchmark-style tasks.
+  Held-out hard questions: 5.0%.
+- Loop rate (control 6): 30.0% (qqWen-32B-RL 69.3%).
+- The claim, as amended (amendment 2): **distillation** from qqWen with
+  execution-verified filtering, plus the model's own verified output and
+  disclosed problem seeds (Morgan Stanley descriptions, MBPP), on a newer base,
+  beats qqWen-32B-RL. Much of the last step came from training in the
+  benchmark's prompt format (amendment 10), using the public template only.
+- Still owed under the evaluation protocol: one bf16 run of the final model,
+  reported separately.
+
 ## Amendments
 
 **11 — 2026-10-02: screen two coding-specialist bases before RL.** Written
