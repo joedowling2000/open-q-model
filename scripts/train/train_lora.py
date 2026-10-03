@@ -110,6 +110,11 @@ def main() -> int:
     ap.add_argument("--targets", choices=["attn", "all"], default="attn",
                     help="attn: full-attention q/k/v/o only (the CPT setting); all: also "
                          "the DeltaNet projections and the MLP")
+    ap.add_argument("--load-4bit", action="store_true",
+                    help="QLoRA: frozen weights in 4-bit NF4 (bitsandbytes), adapters in bf16. "
+                         "For models whose bf16 weights exceed memory (Qwen3-Coder-Next, ~160 GB)")
+    ap.add_argument("--target-modules", default=None,
+                    help="comma-separated module names, overriding --targets (MoE models)")
     ap.add_argument("--max-steps", type=int, default=None,
                     help="stop after this many optimiser steps (timing runs)")
     ap.add_argument("--smoke", action="store_true",
@@ -135,8 +140,18 @@ def main() -> int:
           f"seq {train.shape[1]}, loss {masked}", flush=True)
 
     print(f"loading {args.model}", flush=True)
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model, dtype=torch.bfloat16, device_map="cuda")
+    if args.load_4bit:
+        from peft import prepare_model_for_kbit_training
+        from transformers import BitsAndBytesConfig
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model, device_map="cuda", dtype=torch.bfloat16,
+            quantization_config=BitsAndBytesConfig(
+                load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_use_double_quant=True,
+                bnb_4bit_compute_dtype=torch.bfloat16))
+        model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model, dtype=torch.bfloat16, device_map="cuda")
     if args.merge_adapter:
         from peft import PeftModel
         print(f"merging {args.merge_adapter} into the base weights", flush=True)
@@ -150,7 +165,8 @@ def main() -> int:
         task_type="CAUSAL_LM",
         # Attention projections only. Adapting the MLP as well roughly doubles
         # the trainable parameters for a marginal gain on a corpus this size.
-        target_modules=(["q_proj", "k_proj", "v_proj", "o_proj"] if args.targets == "attn" else
+        target_modules=(args.target_modules.split(",") if args.target_modules else
+                        ["q_proj", "k_proj", "v_proj", "o_proj"] if args.targets == "attn" else
                         # Qwen3.5 has full attention in 1 layer of 4; the other
                         # 48 of 64 are DeltaNet, whose projections are named
                         # differently. "attn" therefore adapts only 16 layers.

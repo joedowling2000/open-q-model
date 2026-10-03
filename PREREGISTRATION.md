@@ -304,6 +304,34 @@ protocol: one-shot, no tools, 512 tokens, temperature 0.8, Q8_0, reasoning off.
 
 ## Amendments
 
+**12 — 2026-10-03: after gate C, the objective is the best open q model.**
+Decided after gate C was met (Results), before any of the work below ran.
+
+*What changes in the objective.* The pre-registered question is answered. Work
+from here aims to produce the best open-weight q model for public release.
+Gate C's result stands as recorded and is not revisited.
+
+*Model selection.* Candidates are chosen on the **clean held-out set**
+(incident 4) only. Q-HumanEval is used for final reporting under the fixed
+protocol, never to choose between models, checkpoints or settings. Every
+choice that touched the benchmark is listed in the write-up.
+
+*The Coder-Next arm (amendment 11; screen: 15.5% one-shot, ~650 tok/s).*
+Qwen3-Coder-Next gets the full training treatment before any comparison, not
+RL straight away:
+(i) QLoRA (4-bit NF4 frozen weights, bf16 adapters), because its bf16 weights
+(~160 GB) exceed memory;
+(ii) optionally, continued pretraining on the same permitted q corpus as gate A;
+(iii) SFT on round 4's full dataset (3261 problems, both prompt formats) in one
+pass, rather than repeating rounds 1–4;
+(iv) one expert-iteration round: it attempts every generated problem and every
+remaining failure, and verified solutions (release check, re-verification)
+are added and it is fine-tuned again;
+(v) it is compared with round 4 on the clean held-out set, and RL starts from
+the higher.
+
+*Still owed.* The bf16 calibration run of the gate C model (round 4).
+
 **11 — 2026-10-02: screen two coding-specialist bases before RL.** Written
 before either model was downloaded or measured.
 
