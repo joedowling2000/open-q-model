@@ -49,6 +49,41 @@ def _reorder_v_heads(tensor, dim, num_k_heads, num_v_per_k, head_dim):
 qwen._LinearAttentionVReorderBase._reorder_v_heads = staticmethod(_reorder_v_heads)
 
 
+# Qwen3-Coder-Next (Qwen3NextModel): in_proj_qkvz is reordered from per-head
+# [q,k,v,z] interleaving to grouped q|k|v|z and split into ATTN_QKV and ATTN_GATE.
+# That is a permutation and split of W's rows, which live in B. The permutation
+# is computed by running the converter's own transform on row indices, so it
+# matches llama.cpp by construction.
+_orig_next_modify = qwen.Qwen3NextModel.modify_tensors
+
+
+def _qkvz_row_index(hp) -> tuple[torch.Tensor, torch.Tensor]:
+    hk, hv = hp["linear_key_head_dim"], hp["linear_value_head_dim"]
+    nv, nk = hp["linear_num_value_heads"], hp["linear_num_key_heads"]
+    split = [hk, hk, nv // nk * hv, nv // nk * hv]
+    rows = sum(split) * nk
+    idx = torch.arange(rows).view(1, rows)               # the transform's view of W.T, hidden_size = 1
+    idx = idx.view(-1, nk, sum(split))
+    q, k, v, z = torch.split(idx, split, dim=-1)
+    qkv = torch.cat([q.reshape(1, -1), k.reshape(1, -1), v.reshape(1, -1)], dim=-1).reshape(-1)
+    return qkv, z.reshape(-1)
+
+
+def _next_modify(self, data_torch, name, bid):
+    if hasattr(data_torch, "_lora_A") and "in_proj_qkvz.weight" in name:
+        A, B = data_torch._lora_A, data_torch._lora_B
+        qkv_idx, z_idx = _qkvz_row_index(self.hparams)
+        yield (self.format_tensor_name(qwen.gguf.MODEL_TENSOR.ATTN_QKV, bid, ".weight"),
+               type(data_torch)(A, B[qkv_idx]))
+        yield (self.format_tensor_name(qwen.gguf.MODEL_TENSOR.ATTN_GATE, bid, ".weight"),
+               type(data_torch)(A, B[z_idx]))
+        return
+    yield from _orig_next_modify(self, data_torch, name, bid)
+
+
+qwen.Qwen3NextModel.modify_tensors = _next_modify
+
+
 def selftest() -> None:
     class Pair:  # the shape of convert_lora_to_gguf.LoraTorchTensor
         def __init__(self, A, B):
@@ -65,6 +100,17 @@ def selftest() -> None:
     want = _orig(B @ A, 1, k, r, hd)
     p = _reorder_v_heads(Pair(A, B), 1, k, r, hd)
     assert torch.allclose(p._lora_B @ p._lora_A, want, atol=1e-4), "column reorder"
+    # Qwen3Next qkvz: the index permutation must reproduce the converter's dense transform.
+    hp = {"linear_key_head_dim": 128, "linear_value_head_dim": 128, "linear_num_value_heads": 32,
+          "linear_num_key_heads": 16, "hidden_size": 64}
+    split = [128, 128, 256, 256]
+    W = torch.randn(sum(split) * 16, 64)
+    d = W.permute(1, 0).contiguous().view(-1, 16, sum(split))
+    q, k, v, z = torch.split(d, split, dim=-1)
+    qkv_dense = torch.cat([t.contiguous().view(64, -1) for t in (q, k, v)], -1).permute(1, 0)
+    z_dense = z.contiguous().view(64, -1).permute(1, 0)
+    qi, zi = _qkvz_row_index(hp)
+    assert torch.equal(W[qi], qkv_dense) and torch.equal(W[zi], z_dense), "qkvz row permutation"
     print("selftest ok: factor reorders reproduce the reordered product exactly")
 
 

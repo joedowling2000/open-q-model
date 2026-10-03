@@ -160,6 +160,9 @@ def main() -> int:
     ap.add_argument("--max-fix-per-problem", type=int, default=3)
     ap.add_argument("--val-frac", type=float, default=0.08)
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--tokenizer", default=TOKENIZER,
+                    help="tokenizer + chat template of the model being trained (Coder-Next "
+                         "differs from Qwen3.5-27B: 151k vocab, no <think> block)")
     args = ap.parse_args()
 
     accepted = [json.loads(l) for l in (ROOT / args.src).open()]
@@ -211,7 +214,7 @@ def main() -> int:
     val_ids = set(ids[:n_val])
 
     from transformers import AutoTokenizer
-    tok = AutoTokenizer.from_pretrained(TOKENIZER)
+    tok = AutoTokenizer.from_pretrained(args.tokenizer)
 
     def encode(s: dict) -> tuple[list[int], list[int]] | None:
         # enable_thinking=False is not a style choice, it is train/serve parity.
@@ -275,7 +278,7 @@ def main() -> int:
         "val_problems": sorted(val_ids),
         "seq_len": args.seq_len,
         "supervised_tokens": supervised,
-        "tokenizer": TOKENIZER,
+        "tokenizer": args.tokenizer,
         # Recorded so check_prompt_parity.py can assert the serving prefix
         # matches this one before any SFT checkpoint is scored.
         "generation_prefix": tok.apply_chat_template(

@@ -113,6 +113,9 @@ def main() -> int:
     ap.add_argument("--load-4bit", action="store_true",
                     help="QLoRA: frozen weights in 4-bit NF4 (bitsandbytes), adapters in bf16. "
                          "For models whose bf16 weights exceed memory (Qwen3-Coder-Next, ~160 GB)")
+    ap.add_argument("--quant-moe", action="store_true",
+                    help="Qwen3-Coder-Next: experts in NF4 via quant_moe.py (bitsandbytes cannot "
+                         "quantise its fused 3D expert tensors), everything else bf16")
     ap.add_argument("--target-modules", default=None,
                     help="comma-separated module names, overriding --targets (MoE models)")
     ap.add_argument("--max-steps", type=int, default=None,
@@ -140,7 +143,13 @@ def main() -> int:
           f"seq {train.shape[1]}, loss {masked}", flush=True)
 
     print(f"loading {args.model}", flush=True)
-    if args.load_4bit:
+    if args.quant_moe:
+        import sys as _sys
+        _sys.path.insert(0, str(ROOT / "scripts/train"))
+        from quant_moe import load as load_quant_moe
+        model, _, n = load_quant_moe(Path(args.model))
+        print(f"loaded {n} bf16 tensors; experts NF4", flush=True)
+    elif args.load_4bit:
         from peft import prepare_model_for_kbit_training
         from transformers import BitsAndBytesConfig
         model = AutoModelForCausalLM.from_pretrained(
