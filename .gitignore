@@ -55,3 +55,7 @@ corpus/round4_records.jsonl
 corpus/hf/
 out/merged/
 corpus/codernext_records.jsonl
+corpus/rl/
+corpus/rl_pool.jsonl
+corpus/rl_history.json
+out/rl/
