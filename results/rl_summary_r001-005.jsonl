@@ -1,0 +1,5 @@
+{"round": 1, "prompts": 128, "rollouts": 1024, "mean_reward": 0.4397, "full_pass_rate": 0.4238, "groups_with_spread": 90, "errors": 0}
+{"round": 2, "prompts": 128, "rollouts": 1024, "mean_reward": 0.4929, "full_pass_rate": 0.4795, "groups_with_spread": 83, "errors": 0}
+{"round": 3, "prompts": 128, "rollouts": 1024, "mean_reward": 0.537, "full_pass_rate": 0.5215, "groups_with_spread": 81, "errors": 0}
+{"round": 4, "prompts": 128, "rollouts": 1024, "mean_reward": 0.5013, "full_pass_rate": 0.4854, "groups_with_spread": 87, "errors": 0}
+{"round": 5, "prompts": 128, "rollouts": 1024, "mean_reward": 0.538, "full_pass_rate": 0.5293, "groups_with_spread": 80, "errors": 0}

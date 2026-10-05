@@ -45,7 +45,7 @@ for R in $(seq $START $END); do
     >> logs/rl-update.log 2>&1 || die "UPDATE_FAILED round $R"
   [ -d "$(adapter $R)" ] || cp -r "$PREV" "$(adapter $R)"    # no-signal round: carry the adapter forward
   grep GRPO_DONE logs/rl-update.log | tail -1
-  if [ "$R" -eq "$PILOT_END" ]; then
+  if [ "$R" -eq "$PILOT_END" ] || { [ "${EVAL_EVERY:-0}" -gt 0 ] && [ $((R % ${EVAL_EVERY:-1})) -eq 0 ]; }; then
     log "pilot check (amendment 9): held-out with policy $(adapter $R)"
     serve "$(adapter $R)" 8107
     $E $QPY scripts/train/eval_heldout.py --url http://127.0.0.1:8107/v1 --model policy --n 10 \
