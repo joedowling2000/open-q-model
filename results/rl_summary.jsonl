@@ -1,0 +1,10 @@
+{"round": 1, "prompts": 128, "rollouts": 1024, "mean_reward": 0.4397, "full_pass_rate": 0.4238, "groups_with_spread": 90, "errors": 0}
+{"round": 2, "prompts": 128, "rollouts": 1024, "mean_reward": 0.4929, "full_pass_rate": 0.4795, "groups_with_spread": 83, "errors": 0}
+{"round": 3, "prompts": 128, "rollouts": 1024, "mean_reward": 0.537, "full_pass_rate": 0.5215, "groups_with_spread": 81, "errors": 0}
+{"round": 4, "prompts": 128, "rollouts": 1024, "mean_reward": 0.5013, "full_pass_rate": 0.4854, "groups_with_spread": 87, "errors": 0}
+{"round": 5, "prompts": 128, "rollouts": 1024, "mean_reward": 0.538, "full_pass_rate": 0.5293, "groups_with_spread": 80, "errors": 0}
+{"round": 6, "prompts": 128, "rollouts": 1024, "mean_reward": 0.5363, "full_pass_rate": 0.5215, "groups_with_spread": 78, "errors": 0}
+{"round": 7, "prompts": 128, "rollouts": 1024, "mean_reward": 0.5337, "full_pass_rate": 0.5205, "groups_with_spread": 83, "errors": 0}
+{"round": 8, "prompts": 128, "rollouts": 1024, "mean_reward": 0.6501, "full_pass_rate": 0.6396, "groups_with_spread": 69, "errors": 0}
+{"round": 9, "prompts": 128, "rollouts": 1024, "mean_reward": 0.6223, "full_pass_rate": 0.6123, "groups_with_spread": 59, "errors": 0}
+{"round": 10, "prompts": 128, "rollouts": 1024, "mean_reward": 0.5931, "full_pass_rate": 0.5771, "groups_with_spread": 76, "errors": 0}
