@@ -76,6 +76,7 @@ def main() -> int:
     ap.add_argument("--group", type=int, default=8)
     ap.add_argument("--cases", type=int, default=30)
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--run", default="rl")
     args = ap.parse_args()
 
     pool = [json.loads(l) for l in (ROOT / "corpus/rl_pool.jsonl").open()]
@@ -98,7 +99,7 @@ def main() -> int:
         rewards = [reward(extract(o), p, seeds) for o in outs]
         return {"id": p["id"], "prompt": p["prompt"], "completions": outs, "rewards": rewards}
 
-    out = ROOT / f"corpus/rl/rollouts_r{args.round:03d}.jsonl"
+    out = ROOT / f"corpus/{args.run}/rollouts_r{args.round:03d}.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
     rows = []
     with ThreadPoolExecutor(args.workers) as pool_, out.open("w") as fh:
@@ -118,7 +119,7 @@ def main() -> int:
                "full_pass_rate": round(sum(x == 1.0 for x in rs) / max(1, len(rs)), 4),
                "groups_with_spread": spread, "errors": sum("error" in r for r in rows)}
     print("ROLLOUT_SUMMARY", json.dumps(summary), flush=True)
-    with (ROOT / "corpus/rl/summary.jsonl").open("a") as fh:
+    with (ROOT / f"corpus/{args.run}/summary.jsonl").open("a") as fh:
         fh.write(json.dumps(summary) + "\n")
     return 0
 

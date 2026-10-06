@@ -322,6 +322,24 @@ protocol: one-shot, no tools, 512 tokens, temperature 0.8, Q8_0, reasoning off.
 
 ## Amendments
 
+**13 — 2026-10-06: a safer second RL run (after incident 7).** Written before
+it ran.
+
+*Start.* The adapter among r005, r010, r011 and r012 with the highest clean
+held-out pass@1. No benchmark score is used.
+
+*Changes from run 1.* KL penalty to round 4 (k3 estimator, beta 0.05, with
+the reference computed by disabling the adapter); learning rate 5e-6 (was
+2e-5); gradient clip 0.5 (was 1.0); fresh Adam state. Everything else is
+unchanged: pool, prompts, reward, group size, Dr. GRPO.
+
+*Automatic stop.* Before each update, `collapse_check.py` stops the run if more
+than 1% of the round's completions are degenerate, or if mean reward on
+problems seen in earlier rounds fell by more than 0.03. Replayed on run 1, it
+stops at round 14's rollouts, one round before the visible collapse. On a
+stop, the last good adapter stands. Held-out is scored every 5 rounds, and the
+final model is the best checkpoint of either run on clean held-out.
+
 **12 — 2026-10-03: after gate C, the objective is the best open q model.**
 Decided after gate C was met (Results), before any of the work below ran.
 
