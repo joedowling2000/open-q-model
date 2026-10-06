@@ -267,6 +267,24 @@ As at incident 5, the run was stopped and discarded unscored. Solutions that
 fail any re-verification are now excluded with the release-check failures, and
 round 3 restarts at the records step (2844 records). Cost: ~3 hours.
 
+**7 — 2026-10-06: RL policy collapse at round 14.** Rounds 1–13 were healthy.
+On problems seen in earlier rounds, reward rose +0.06 to +0.16 each round, and
+clean held-out went from 18.2% (round 4) to 21.2% (RL round 5) and 23.7%
+(round 10). Round 14's update was unusually large (loss magnitude ~0.018
+against ~0.0002 typical). After it, same-problem reward fell 0.04 and then
+0.26, and the policy began emitting degenerate text: junk tokens and runs of
+one repeated word. That was 170 of 1016 round-15 rollouts, against 0–2 per
+round before, and it crashed llama-server's output parser during the round-15
+held-out check, which stopped the chain. Likely cause: the RL recipe has no
+anchor to the starting policy (no KL penalty) and a constant learning rate
+with accumulated Adam state, so one large step could tip the policy over.
+
+*What changes.* Adapters r013 onwards are excluded as candidates (r013 is the
+first with degenerate output). The final checkpoint is chosen among r005–r012
+on clean held-out only (amendment 12). Any further RL must add a KL penalty
+to round 4, a lower learning rate, and an automatic stop when same-problem
+reward falls or degenerate output appears. Gate C (round 4) is unaffected.
+
 ## Results
 
 **Gate C — met, 2026-10-03, by round 4** (`qwen3.5-27b-r4`: round 3 merged,
