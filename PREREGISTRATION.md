@@ -322,6 +322,36 @@ protocol: one-shot, no tools, 512 tokens, temperature 0.8, Q8_0, reasoning off.
 
 ## Amendments
 
+**14 — 2026-10-07: push the final model as far as the Spark allows.** Written
+before any of it ran. The objective (amendment 12) is unchanged. The
+evaluation protocol is unchanged, and Q-HumanEval is still scored once, on the
+final model, and used for nothing else. No benchmark problem, test,
+per-problem result or failure pattern is used beyond what amendment 10
+already recorded.
+
+(i) **Benchmark-style RL problems.** Qwen3.5-27B (base) writes ~1000 new short,
+single-function tasks in the style of classic programming exercises: 1–3
+simple arguments, one return value. They use the same validation as amendment
+8. Because a model may reproduce well-known benchmark tasks, each problem's
+three nearest Q-HumanEval problems go to the same-task judge used for MBPP
+(amendment 10 ii), and anything but a clear "no" drops it. Kept problems join
+the RL pool with weight 2.0.
+
+(ii) **A longer safe run.** Rounds 16–30 continue from the last good adapter
+of rounds 1–15, with the pool enlarged by (i). If rounds 1–15 had no collapse
+stop and no round above 0.1% degenerate output, the KL coefficient drops from
+0.05 to 0.02. Otherwise it stays at 0.05. The collapse check and held-out
+every 5 rounds stay.
+
+(iii) **Adapter averaging.** The final candidates also include uniform averages
+of the adapters of the three best checkpoints on clean held-out (across both
+runs).
+
+(iv) **Final selection.** The final model is the single best candidate on clean
+held-out, among run-1 r005–r012, every run-2 checkpoint and the averages. It is
+merged, and scored once on Q-HumanEval under the fixed protocol, plus the bf16
+calibration.
+
 **13 — 2026-10-06: a safer second RL run (after incident 7).** Written before
 it ran.
 

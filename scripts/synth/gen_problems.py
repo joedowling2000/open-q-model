@@ -61,6 +61,18 @@ SETTINGS = ["trade and order records", "sensor telemetry", "shipping and logisti
             "network packets", "library loans", "energy metering", "text documents",
             "product catalogues", "survey responses", "flight schedules"]
 
+HSTYLE_TOPICS = {"string processing": 1.0, "list manipulation": 1.0, "integer arithmetic and digits": 1.0,
+                 "counting and frequency": 1.0, "sorting and ordering": 1.0, "searching": 0.8,
+                 "number theory": 0.8, "simple parsing": 0.8, "sequences": 0.8, "boolean checks": 0.8}
+HSTYLE_EXTRA = """
+Make it a short, self-contained exercise of the kind found in classic programming
+practice sets: the statement is 1-3 sentences, solve() takes 1-3 arguments of
+simple types (integers, floats, strings, or lists of these) and returns a single
+value (number, boolean, string or list). Do not reproduce any well-known exercise
+from a public benchmark or textbook; invent a fresh task. Argument names must not
+be q keywords or built-ins (avoid log, count, sum, max, min, first, last, key,
+value, type, string, where, group, x, y, z)."""
+
 EXTRA = """
 Setting: {setting}. solve() should return {shape}.
 Argument names must be ordinary descriptive words that are not q keywords or
@@ -108,6 +120,25 @@ def validate(src: str, args: list, timeout: float = 60) -> tuple[str, object]:
     return q.get() if not q.empty() else ("fail", "crashed")
 
 
+_HE = None
+
+
+def same_task_as_benchmark(desc: str, url: str, model: str) -> bool:
+    """Amendment 14 (i): the MBPP same-task judge, applied to a generated problem."""
+    global _HE
+    from mbpp_reference import JUDGE, overview, words as bwords
+    if _HE is None:
+        he = [json.loads(l) for l in (ROOT / "q-evaluation-harness/datasets/q_humaneval.jsonl").open()]
+        _HE = [(overview(h["prompt"]), bwords(overview(h["prompt"]))) for h in he]
+    w = bwords(desc)
+    near = sorted(_HE, key=lambda t: -len(w & t[1]) / max(1, len(w | t[1])))[:3]
+    for text, _ in near:
+        reply = chat(JUDGE.format(a=desc, b=text), base_url=url, model=model, temperature=0.0, max_tokens=5)
+        if reply.strip().lower().rstrip(".") != "no":
+            return True
+    return False
+
+
 def solve_args(py: str) -> list[str] | None:
     try:
         for node in ast.parse(py).body:
@@ -126,6 +157,9 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--seed", type=int, default=20260925)
     ap.add_argument("--out", default="corpus/generated_problems.jsonl")
+    ap.add_argument("--style", choices=["default", "humaneval"], default="default",
+                    help="humaneval: short single-function exercises (amendment 14 i), "
+                         "each checked by the same-task judge against Q-HumanEval")
     args = ap.parse_args()
 
     out = ROOT / args.out
@@ -149,12 +183,16 @@ def main() -> int:
 
     def one(i: int) -> dict:
         r = random.Random(rng.random())
-        spec = {"topic": pick(r, TOPICS), "difficulty": pick(r, LEVELS),
-                "shape": pick(r, SHAPES), "setting": r.choice(SETTINGS)}
+        if args.style == "humaneval":
+            spec = {"topic": pick(r, HSTYLE_TOPICS), "difficulty": pick(r, {"easy": 0.3, "medium": 0.5, "hard": 0.2}),
+                    "shape": "", "setting": "", "style": "humaneval"}
+        else:
+            spec = {"topic": pick(r, TOPICS), "difficulty": pick(r, LEVELS),
+                    "shape": pick(r, SHAPES), "setting": r.choice(SETTINGS)}
         # replace, not format: the template contains a literal `return {...}`
-        prompt = PROBLEM_PROMPT.replace("{topic}", spec["topic"]).replace(
-            "{level}", spec["difficulty"]) + EXTRA.format(setting=spec["setting"],
-                                                         shape=spec["shape"])
+        prompt = PROBLEM_PROMPT.replace("{topic}", spec["topic"]).replace("{level}", spec["difficulty"]) + (
+            HSTYLE_EXTRA if args.style == "humaneval"
+            else EXTRA.format(setting=spec["setting"], shape=spec["shape"]))
         try:
             reply = chat(prompt, base_url=args.url, model=args.model,
                          temperature=0.9, max_tokens=1800)
@@ -175,6 +213,14 @@ def main() -> int:
             return {**spec, "ok": False, "reason": info}
         if info > 0.9:
             return {**spec, "ok": False, "reason": f"not discriminating ({info:.2f})"}
+        if args.style == "humaneval":
+            if len(names) > 3:
+                return {**spec, "ok": False, "reason": "more than 3 arguments"}
+            try:
+                if same_task_as_benchmark(desc, args.url, args.model):
+                    return {**spec, "ok": False, "reason": "judged the same task as a Q-HumanEval problem"}
+            except Exception as e:
+                return {**spec, "ok": False, "reason": f"judge error {type(e).__name__}"}
         return {**spec, "ok": True, "description": desc, "argnames": names,
                 "python_src": src, "dominant_share": info}
 
@@ -187,7 +233,9 @@ def main() -> int:
                 if res["ok"]:
                     w = words(res["description"])
                     h = hashlib.sha256(res["python_src"].encode()).hexdigest()
-                    if too_close(w, bench, 0.6):
+                    # Short exercises: the min-normalised measure flags nearly all of
+                    # them, so this style uses Jaccard, and the same-task judge decides.
+                    if (jaccard_close(w, bench, 0.5) if args.style == "humaneval" else too_close(w, bench, 0.6)):
                         res = {**res, "ok": False, "reason": "close to Q-HumanEval"}
                     elif jaccard_close(w, held, 0.35):
                         res = {**res, "ok": False, "reason": "close to a held-out question"}
@@ -197,8 +245,8 @@ def main() -> int:
                         existing.append(w)
                         seen_py.add(h)
                         kept += 1
-                        res["id"] = f"gen__{h[:12]}"
-                        res["question_type"] = "generated"
+                        res["id"] = ("hstyle__" if args.style == "humaneval" else "gen__") + h[:12]
+                        res["question_type"] = "generated-hstyle" if args.style == "humaneval" else "generated"
                         res["provenance"] = f"problem, reference and generator: {args.model}"
                 fh.write(json.dumps(res) + "\n")
                 fh.flush()

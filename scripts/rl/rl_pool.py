@@ -28,7 +28,8 @@ import qcheck  # noqa: E402
 from harness_format import PREAMBLE, clean_description, function_name, type_tag  # noqa: E402
 
 RESERVED = set(json.loads((ROOT / "scripts/synth/q_reserved.json").read_text()))
-SOURCE_WEIGHT = {"mbpp": 1.5, "ms": 1.5, "gen": 1.0, "bank": 1.0}   # amendment 10 (v)
+SOURCE_WEIGHT = {"mbpp": 1.5, "ms": 1.5, "gen": 1.0, "bank": 1.0,   # amendment 10 (v)
+                 "hstyle": 2.0}                                    # amendment 14 (i)
 
 
 def words(t: str) -> frozenset:
@@ -62,8 +63,10 @@ def main() -> int:
         dq |= {json.loads(l)["id"] for l in p.open() if json.loads(l).get("reason", "").startswith("ORIGINAL FAILED")}
 
     recs = [(r, "bank") for r in bank if r["question_type"] == "original"]
-    for f, src in (("generated_problems.jsonl", "gen"), ("mbpp_rebuilt.jsonl", "mbpp"), ("ms_rebuilt.jsonl", "ms")):
-        recs += [(json.loads(l), src) for l in (ROOT / "corpus" / f).open()]
+    for f, src in (("generated_problems.jsonl", "gen"), ("mbpp_rebuilt.jsonl", "mbpp"), ("ms_rebuilt.jsonl", "ms"),
+                   ("hstyle_problems.jsonl", "hstyle")):
+        if (ROOT / "corpus" / f).exists():
+            recs += [(json.loads(l), src) for l in (ROOT / "corpus" / f).open()]
     stats, out = Counter(), []
     for r, src in recs:
         if not r.get("ok", True) or not r.get("python_src") or not r.get("id"):
