@@ -322,6 +322,32 @@ protocol: one-shot, no tools, 512 tokens, temperature 0.8, Q8_0, reasoning off.
 
 ## Amendments
 
+**15 — 2026-10-10: a second, benchmark-style held-out set for final selection.**
+Written before any checkpoint was scored on it.
+
+*Why.* The clean held-out set (incident 4) is long, business-style questions.
+Rounds 16–30 trained heavily on short benchmark-style exercises (amendment
+14 i), and the clean held-out set cannot see gains there. Checkpoints r020
+(22.8%) and r025 (23.5%) sit within noise of rl2/r005 (25.7%) while training
+reward rose. Selecting on it alone could discard exactly the improvement
+amendment 14 aimed at.
+
+*The set.* 200 of the 716 benchmark-style problems never drawn in any RL round
+(as of the start of round 26), chosen with seed 20261010
+(`corpus/heldout_style.json`, ids and hash committed). They are removed from
+the RL pool from round 27. Round 26 drew from the old pool, so any of the 200 it
+drew are dropped from the set and the count is recorded. Scoring: the
+harness-format prompt, 5 samples per problem, temperature 0.8, 512 tokens,
+Q8_0. A sample passes if it is fully correct on 30 fresh generated inputs;
+pass@1 is averaged over problems.
+
+*Selection.* Candidates are run-1 r011, run-2 r005, r008, r020, r025 and the
+last good adapter of rounds 26–30, plus the exact average of the top three by
+the criterion below (rank concatenation, B scaled by 1/3, so the result equals
+the mean of the three updates). The criterion is the mean of clean held-out
+pass@1 and style held-out pass@1. The highest wins. Q-HumanEval stays
+untouched until that model is chosen, merged and scored once.
+
 **14 — 2026-10-07: push the final model as far as the Spark allows.** Written
 before any of it ran. The objective (amendment 12) is unchanged. The
 evaluation protocol is unchanged, and Q-HumanEval is still scored once, on the
