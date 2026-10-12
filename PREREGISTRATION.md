@@ -320,6 +320,36 @@ protocol: one-shot, no tools, 512 tokens, temperature 0.8, Q8_0, reasoning off.
 - Still owed under the evaluation protocol: one bf16 run of the final model,
   reported separately.
 
+**Final model — 2026-10-12** (`qwen3.5-27b-final` = round 4 + RL adapter
+`out/rl/r011`, chosen under amendment 15 by mean clean + style held-out
+(51.85%, the highest of 7 candidates; the top-3 average scored 50.05%).
+Q-HumanEval was scored once, after the choice, under the fixed protocol
+(164 x 30, Q8_0, one-shot, 512 tokens, temperature 0.8, reasoning off).
+
+| | pass@1 | 95% CI | pass@10 |
+|---|---|---|---|
+| qqWen-32B-RL (measured here) | 38.4% | | 59.4% |
+| Round 4 (gate C) | 46.75% | [41.0, 52.6] | 75.7% |
+| **Final** | **64.82%** | **[58.9, 70.8]** | **83.4%** |
+| Claude Opus 4.8 one-shot (KX's published run, not measured here) | 53.2% | | 80.8% |
+
+- Paired vs round 4: +18.1 pts [+12.8, +23.4], better on 99 problems and worse on
+  30; never-solved problems 27 -> 19. Paired vs qqWen-32B-RL: +26.4
+  [+20.2, +32.7].
+- Every failure type fell: wrong answers 1524 -> 1072; q type/length/rank errors
+  543 -> 285; execution errors roughly halved.
+- No benchmark content in RL. The same-task judge's positive control flags 15/15
+  benchmark problems and 0/15 kept generated problems.
+- Held-out: clean 24.5% (round 4: 18.2%); style held-out 79.2%.
+- **Control 6 (idiom): loop rate 78.5% (round 4: 30.0%; qqWen-32B-RL: 69.3%);
+  median answer length 386 chars (191).** RL optimised correctness and learned
+  that verbose while-loop q passes more reliably. The final model is more
+  correct but markedly less idiomatic, and this must be stated wherever the
+  result is.
+- Comparison with Opus 4.8 is with KX's published one-shot run (50 samples via
+  OpenRouter), not a run under this protocol on this machine.
+- bf16 calibration of the final model: in progress.
+
 ## Amendments
 
 **15 — 2026-10-10: a second, benchmark-style held-out set for final selection.**
