@@ -1,0 +1,395 @@
+{
+  "total_solutions": 40,
+  "passed_solutions": 24,
+  "errored_solutions": 0,
+  "scored_solutions": 40,
+  "pass_rate": 0.6,
+  "total_problems": 20,
+  "execution_method": "sequential",
+  "max_workers": 1,
+  "pass_at_1": 0.6,
+  "per_problem_results": [
+    {
+      "task_id": 0,
+      "num_samples": 2,
+      "num_correct": 0
+    },
+    {
+      "task_id": 1,
+      "num_samples": 2,
+      "num_correct": 0
+    },
+    {
+      "task_id": 2,
+      "num_samples": 2,
+      "num_correct": 2
+    },
+    {
+      "task_id": 3,
+      "num_samples": 2,
+      "num_correct": 2
+    },
+    {
+      "task_id": 4,
+      "num_samples": 2,
+      "num_correct": 2
+    },
+    {
+      "task_id": 5,
+      "num_samples": 2,
+      "num_correct": 2
+    },
+    {
+      "task_id": 6,
+      "num_samples": 2,
+      "num_correct": 2
+    },
+    {
+      "task_id": 7,
+      "num_samples": 2,
+      "num_correct": 1
+    },
+    {
+      "task_id": 8,
+      "num_samples": 2,
+      "num_correct": 0
+    },
+    {
+      "task_id": 9,
+      "num_samples": 2,
+      "num_correct": 2
+    },
+    {
+      "task_id": 10,
+      "num_samples": 2,
+      "num_correct": 0
+    },
+    {
+      "task_id": 11,
+      "num_samples": 2,
+      "num_correct": 1
+    },
+    {
+      "task_id": 12,
+      "num_samples": 2,
+      "num_correct": 1
+    },
+    {
+      "task_id": 13,
+      "num_samples": 2,
+      "num_correct": 2
+    },
+    {
+      "task_id": 14,
+      "num_samples": 2,
+      "num_correct": 2
+    },
+    {
+      "task_id": 15,
+      "num_samples": 2,
+      "num_correct": 2
+    },
+    {
+      "task_id": 16,
+      "num_samples": 2,
+      "num_correct": 2
+    },
+    {
+      "task_id": 17,
+      "num_samples": 2,
+      "num_correct": 0
+    },
+    {
+      "task_id": 18,
+      "num_samples": 2,
+      "num_correct": 0
+    },
+    {
+      "task_id": 19,
+      "num_samples": 2,
+      "num_correct": 1
+    }
+  ],
+  "results": [
+    {
+      "task_id": 0,
+      "sample_index": 0,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 0,
+      "sample_index": 1,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 1,
+      "sample_index": 0,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 1,
+      "sample_index": 1,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 2,
+      "sample_index": 0,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 2,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 3,
+      "sample_index": 0,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 3,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 4,
+      "sample_index": 0,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 4,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 5,
+      "sample_index": 0,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 5,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 6,
+      "sample_index": 0,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 6,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 7,
+      "sample_index": 0,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 7,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 8,
+      "sample_index": 0,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 8,
+      "sample_index": 1,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 9,
+      "sample_index": 0,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 9,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 10,
+      "sample_index": 0,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 10,
+      "sample_index": 1,
+      "passed": false,
+      "info": "failed: Test execution failed: type",
+      "errored": false
+    },
+    {
+      "task_id": 11,
+      "sample_index": 0,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 11,
+      "sample_index": 1,
+      "passed": false,
+      "info": "failed: Test execution failed: type",
+      "errored": false
+    },
+    {
+      "task_id": 12,
+      "sample_index": 0,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 12,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 13,
+      "sample_index": 0,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 13,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 14,
+      "sample_index": 0,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 14,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 15,
+      "sample_index": 0,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 15,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 16,
+      "sample_index": 0,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 16,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    },
+    {
+      "task_id": 17,
+      "sample_index": 0,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 17,
+      "sample_index": 1,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 18,
+      "sample_index": 0,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 18,
+      "sample_index": 1,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 19,
+      "sample_index": 0,
+      "passed": false,
+      "info": "failed: Test assertion failed: ",
+      "errored": false
+    },
+    {
+      "task_id": 19,
+      "sample_index": 1,
+      "passed": true,
+      "info": "passed",
+      "errored": false
+    }
+  ]
+}

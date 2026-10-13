@@ -60,3 +60,7 @@ corpus/rl_pool.jsonl
 corpus/rl_history.json
 out/rl/
 corpus/hstyle_problems.jsonl
+
+# Frontier-model answers: evaluation only, never training (amendment 17). Scores are committed.
+results/frontier/*.jsonl
+results/frontier/*-exec.log

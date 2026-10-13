@@ -353,7 +353,53 @@ Q-HumanEval was scored once, after the choice, under the fixed protocol
   bf16 − Q8_0: +0.28 pts [−0.7, +1.3]. Q8_0 quantisation costs nothing
   measurable; the Q8_0 headline stands.
 
+**Frontier comparison: Claude Opus 4.8, measured here — 2026-10-13** (amendment
+17). Same harness, grader, prompts, problems, 30 samples, one-shot, no tools,
+thinking disabled, 512 tokens. The one difference is temperature: the API rejects
+non-default sampling parameters, so Opus ran at 1.0 against our 0.8.
+
+| | pass@1 | 95% CI | pass@10 |
+|---|---|---|---|
+| **Final model** | **64.82%** | [58.9, 70.8] | 83.4% |
+| Claude Opus 4.8, measured here | 56.97% | [51.0, 63.0] | 83.3% |
+| Claude Opus 4.8, KX published (OpenRouter, 50 samples) | 53.2% | | 80.8% |
+
+- Paired, final minus Opus 4.8: **+7.85 pts [+0.8, +14.8]**. Ours is better on
+  74 problems, Opus on 61, with 29 tied. pass@10 is level.
+- Never solved: Opus 18, ours 19, both only 4. Their failures barely overlap.
+- 2276 of 4920 Opus answers (46%) stopped at the 512-token cap. In the pilot,
+  none of Opus 4.8's capped answers lacked a complete code block; the cap cuts
+  the explanation after the code.
+- Cost $28.77 (Batch API) plus a $1.02 pilot. Outputs stay in
+  `results/frontier/` and are never used for training (lineage rule).
+- Owed: our final model re-run at temperature 1.0 under the same harness, for
+  a matched-temperature comparison (amendment 17).
+
 ## Amendments
+
+**17 — 2026-10-13: a frontier model measured under our protocol.** Written after
+a 20-problem x 2-sample pilot of Opus 4.8, Opus 5 and Sonnet 5 (pass@1 50.0%,
+60.0%, 52.5% on those 20; disclosed here) and before the full run.
+
+*Why.* The only frontier number so far was KX's published Opus 4.8 run, made
+with a different sample count and route. A comparison is only reported as one
+under identical conditions (control 5), so we measure it ourselves.
+
+*Protocol.* Claude Opus 4.8 (`claude-opus-4-8`) through the Anthropic Message
+Batches API with the official SDK (`scripts/frontier/claude_gen.py`): the
+harness's own q_humaneval prompts as a single user message, 30 samples per
+problem, `thinking` disabled, `max_tokens` 512, scored by the harness's execute
+command with the same grader. A failed request stops the run and is never
+written as an empty answer (incident 3). Unavoidable difference: temperature 1.0
+(API default; non-default sampling parameters are rejected) against our 0.8.
+To match it, the released model is re-run at temperature 1.0 through the same
+prompts, after the idiom run (amendment 16) has decided which model that is.
+Opus 5 and Sonnet 5 were piloted but not run in full. Opus 5.5 cannot disable
+thinking, so it was not run under this protocol.
+
+*Lineage.* Frontier output is evaluation data only. It never enters training,
+RL pools or problem generation.
+
 
 **16 — 2026-10-13: idiom RL, a loop penalty on top of the final model.**
 Written before any idiom-run rollout.
