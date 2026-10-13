@@ -372,8 +372,9 @@ non-default sampling parameters, so Opus ran at 1.0 against our 0.8.
   the explanation after the code.
 - Cost $28.77 (Batch API) plus a $1.02 pilot. Outputs stay in
   `results/frontier/` and are never used for training (lineage rule).
-- Owed: our final model re-run at temperature 1.0 under the same harness, for
-  a matched-temperature comparison (amendment 17).
+- Not run: a matched-temperature (1.0) re-run of our model. Decided on
+  2026-10-13 before it started. The comparison stands as reported, with the
+  temperature difference stated.
 
 ## Amendments
 
@@ -392,8 +393,8 @@ problem, `thinking` disabled, `max_tokens` 512, scored by the harness's execute
 command with the same grader. A failed request stops the run and is never
 written as an empty answer (incident 3). Unavoidable difference: temperature 1.0
 (API default; non-default sampling parameters are rejected) against our 0.8.
-To match it, the released model is re-run at temperature 1.0 through the same
-prompts, after the idiom run (amendment 16) has decided which model that is.
+A matched-temperature re-run of our model was planned and then dropped before
+it started (see Results).
 Opus 5 and Sonnet 5 were piloted but not run in full. Opus 5.5 cannot disable
 thinking, so it was not run under this protocol.
 
