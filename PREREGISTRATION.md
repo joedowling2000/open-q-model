@@ -317,8 +317,8 @@ protocol: one-shot, no tools, 512 tokens, temperature 0.8, Q8_0, reasoning off.
   disclosed problem seeds (Morgan Stanley descriptions, MBPP), on a newer base,
   beats qqWen-32B-RL. Much of the last step came from training in the
   benchmark's prompt format (amendment 10), using the public template only.
-- Still owed under the evaluation protocol: one bf16 run of the final model,
-  reported separately.
+- The bf16 run owed under the evaluation protocol is reported with the final
+  model below.
 
 **Final model — 2026-10-12** (`qwen3.5-27b-final` = round 4 + RL adapter
 `out/rl/r011`, chosen under amendment 15 by mean clean + style held-out
@@ -348,7 +348,10 @@ Q-HumanEval was scored once, after the choice, under the fixed protocol
   result is.
 - Comparison with Opus 4.8 is with KX's published one-shot run (50 samples via
   OpenRouter), not a run under this protocol on this machine.
-- bf16 calibration of the final model: in progress.
+- bf16 calibration of the final model (protocol requirement, reported
+  separately; 2026-10-12): **65.10% [59.1, 71.1]**, pass@10 83.3%. Paired
+  bf16 − Q8_0: +0.28 pts [−0.7, +1.3]. Q8_0 quantisation costs nothing
+  measurable; the Q8_0 headline stands.
 
 ## Amendments
 

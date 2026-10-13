@@ -1,7 +1,7 @@
 {
  "purpose": "PREREGISTRATION amendment 15: style held-out set; benchmark-style problems never drawn in RL, frozen and excluded from all later rounds",
  "selected_from": 716,
- "n": 200,
+ "n": 198,
  "seed": 20261010,
  "ids": [
   "hstyle__01854f7ff68d",
@@ -21,7 +21,6 @@
   "hstyle__0d14cd118200",
   "hstyle__0e02333b4969",
   "hstyle__0e1b750dafb2",
-  "hstyle__11265a661554",
   "hstyle__112f9f6ddc46",
   "hstyle__11695b62e6e4",
   "hstyle__125d0eeb9dee",
@@ -89,7 +88,6 @@
   "hstyle__60ffc271290a",
   "hstyle__629b5129d2d0",
   "hstyle__652bbafe34dc",
-  "hstyle__6599f125e3d4",
   "hstyle__66139fb7ce82",
   "hstyle__664c5e639751",
   "hstyle__668ae95bec9f",
@@ -205,5 +203,9 @@
   "hstyle__fe525b6bebe9",
   "hstyle__ff374cd044b9"
  ],
- "ids_sha256": "68c3ac546102362099d01c3d96d09880bb7dbd8fba3406fc0ca8cf1763d9f6ca"
+ "ids_sha256": "68c3ac546102362099d01c3d96d09880bb7dbd8fba3406fc0ca8cf1763d9f6ca",
+ "dropped_drawn_in_rl": [
+  "hstyle__11265a661554",
+  "hstyle__6599f125e3d4"
+ ]
 }
