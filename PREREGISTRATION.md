@@ -355,6 +355,57 @@ Q-HumanEval was scored once, after the choice, under the fixed protocol
 
 ## Amendments
 
+**16 — 2026-10-13: idiom RL, a loop penalty on top of the final model.**
+Written before any idiom-run rollout.
+
+*Why.* Control 6 shows that RL bought correctness with imperative q. The final
+model writes `while`/`do` loops in 78.5% of Q-HumanEval answers (round 4: 30.0%)
+and in 99.1% of its held-out answers. A model released for q developers should
+write q, not Python spelled in q. The pass rate cannot see this, so it has to be
+rewarded directly.
+
+*Is there signal?* In round 11's rollouts, 81 of 1024 attempts were loop-free
+full passes (577 were loop passes). The policy still produces idiomatic
+answers, though rarely, so there is something to reinforce.
+
+*Method.* Run `rl3`, starting from the final adapter `out/rl/r011`, on the
+same RL pool. Settings follow amendment 13: KL to round 4 with beta 0.05 (round
+4 is also the less loopy model), lr 5e-6, grad clip 0.5, fresh Adam state, held-
+out excluded, and the style held-out set excluded. Changes:
+- Reward: a full pass whose code contains `while[` or `do[` (control 6's test)
+  scores 0.5 instead of 1.0. Partial (0.2 x fraction) and zero scores are
+  unchanged, so a passing loop still beats any failure. Learnability weights use
+  a separate history in which only a loop-free full pass counts as solved.
+- 64 prompts x 16 attempts per round (the same 1024 rollouts) to give each
+  group more chances of a loop-free pass.
+- The collapse check compares the full-pass rate, whatever the penalty, since
+  reward now falls by design when loops persist. Stop if it drops by more than
+  0.05 on repeated problems, or if more than 1% of completions are degenerate.
+- 15 rounds. Clean held-out and style held-out, with loop rates, at rounds 5,
+  10, 15 and on the last good adapter.
+
+*Selection, fixed now.* combined = (clean held-out + style held-out) / 2, as in
+amendment 15; loop = the `while`/`do` share of all held-out and style samples.
+r011 is re-measured on style with samples kept, as the baseline. A checkpoint is
+eligible if its combined score is no more than 3.0 pts below r011's. Choose the
+eligible checkpoint with the lowest loop rate, provided it is at least 20 pts
+below r011's. If none qualifies, the result is IDIOM_NONE, no Q-HumanEval run is
+made, and the final model stands.
+
+*Scoring and release.* The chosen checkpoint is merged into round 4 and scored on
+Q-HumanEval once, under the fixed protocol. Report pass@1 with CI, paired
+difference against the final model, loop rate and median length. **It becomes
+the main release if its pass@1 is no more than 5.0 pts below the final model's
+(i.e. at least 59.8%) and its Q-HumanEval loop rate is at most 39% (half of
+78.5%).** Otherwise the final model stays the main release, and the idiom model is
+published as a variant with its numbers. Either way, both results are reported.
+
+*Risks stated in advance.* The penalty tests for two keywords. The model could
+dodge it with other imperative forms, such as `.z.s` recursion or index-driven
+`{...}/` over `til n`. Twenty random Q-HumanEval answers from the chosen model
+will be read by hand and the forms used reported. No frontier-model output is
+involved; lineage is unchanged.
+
 **15 — 2026-10-10: a second, benchmark-style held-out set for final selection.**
 Written before any checkpoint was scored on it.
 

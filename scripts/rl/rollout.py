@@ -12,6 +12,10 @@ problem's generator; otherwise 0.2 x the fraction passed; 0 if it does not load
 or defines the wrong name. Generation uses the evaluation's settings: one-shot,
 temperature 0.8, 512 tokens.
 
+Idiom run (amendment 16, --idiom-penalty p): a full pass whose code has a
+`while`/`do` loop (control 6's test) scores 1 - p instead of 1.0. Partial and
+failing scores are unchanged, so a loop that passes still beats any failure.
+
     python scripts/rl/rollout.py --url http://127.0.0.1:8107/v1 --model policy \\
         --round 1 --prompts 128 --group 8
 """
@@ -31,6 +35,7 @@ sys.path.insert(0, str(ROOT / "scripts/synth"))
 import qcheck  # noqa: E402
 
 HISTORY = ROOT / "corpus/rl_history.json"     # id -> [n_attempts, n_full_passes]
+LOOPY = re.compile(r"\b(while|do)\[")         # control 6
 
 
 def learnability(h) -> float:
@@ -77,10 +82,13 @@ def main() -> int:
     ap.add_argument("--cases", type=int, default=30)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--run", default="rl")
+    ap.add_argument("--idiom-penalty", type=float, default=0.0)
+    ap.add_argument("--history", default=str(HISTORY), help="learnability counts; the idiom run keeps its own")
     args = ap.parse_args()
 
     pool = [json.loads(l) for l in (ROOT / "corpus/rl_pool.jsonl").open()]
-    hist = json.loads(HISTORY.read_text()) if HISTORY.exists() else {}
+    history = Path(args.history)
+    hist = json.loads(history.read_text()) if history.exists() else {}
     rng = random.Random(1000 + args.round)
     w = [p["weight"] * learnability(hist.get(p["id"])) for p in pool]
     chosen, seen = [], set()
@@ -96,8 +104,11 @@ def main() -> int:
             outs = generate(args.url, args.model, p["prompt"], args.group)
         except Exception as e:
             return {"id": p["id"], "error": type(e).__name__}
-        rewards = [reward(extract(o), p, seeds) for o in outs]
-        return {"id": p["id"], "prompt": p["prompt"], "completions": outs, "rewards": rewards}
+        passed = [reward(extract(o), p, seeds) for o in outs]
+        loops = [bool(LOOPY.search(o)) for o in outs]
+        rewards = [1.0 - args.idiom_penalty if x == 1.0 and lo else x for x, lo in zip(passed, loops)]
+        return {"id": p["id"], "prompt": p["prompt"], "completions": outs, "rewards": rewards,
+                "passed": [x == 1.0 for x in passed], "loops": loops}
 
     out = ROOT / f"corpus/{args.run}/rollouts_r{args.round:03d}.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -111,13 +122,15 @@ def main() -> int:
         if "rewards" in r:
             n, k = hist.get(r["id"], [0, 0])
             hist[r["id"]] = [n + len(r["rewards"]), k + sum(x == 1.0 for x in r["rewards"])]
-    HISTORY.write_text(json.dumps(hist))
+    history.write_text(json.dumps(hist))
     rs = [x for r in rows if "rewards" in r for x in r["rewards"]]
     spread = sum(1 for r in rows if "rewards" in r and len(set(r["rewards"])) > 1)
     summary = {"round": args.round, "prompts": len(rows), "rollouts": len(rs),
                "mean_reward": round(sum(rs) / max(1, len(rs)), 4),
                "full_pass_rate": round(sum(x == 1.0 for x in rs) / max(1, len(rs)), 4),
-               "groups_with_spread": spread, "errors": sum("error" in r for r in rows)}
+               "groups_with_spread": spread,
+               "pass_rate": round(sum(x for r in rows if "passed" in r for x in r["passed"]) / max(1, len(rs)), 4),
+               "loop_rate": round(sum(x for r in rows if "loops" in r for x in r["loops"]) / max(1, len(rs)), 4), "errors": sum("error" in r for r in rows)}
     print("ROLLOUT_SUMMARY", json.dumps(summary), flush=True)
     with (ROOT / f"corpus/{args.run}/summary.jsonl").open("a") as fh:
         fh.write(json.dumps(summary) + "\n")
