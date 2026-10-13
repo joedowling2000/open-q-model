@@ -64,3 +64,6 @@ corpus/hstyle_problems.jsonl
 # Frontier-model answers: evaluation only, never training (amendment 17). Scores are committed.
 results/frontier/*.jsonl
 results/frontier/*-exec.log
+
+# Release staging (hard links to weights)
+release/stage/
