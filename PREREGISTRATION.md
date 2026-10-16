@@ -285,6 +285,25 @@ on clean held-out only (amendment 12). Any further RL must add a KL penalty
 to round 4, a lower learning rate, and an automatic stop when same-problem
 reward falls or degenerate output appears. Gate C (round 4) is unaffected.
 
+**8 — 2026-10-15: a server error ended the idiom run, and selection ran on
+partial results.** During the round 10 held-out check (amendment 16),
+llama-server returned one HTTP 500. `eval_heldout.py` had no retry, so the check
+and then the chain stopped (15:48). `idiom_select.sh` waited only for the chain
+to exit, not for it to finish. It then ran with just r005 and printed
+IDIOM_NONE (15:58). That verdict is void: the rule calls for checkpoints r005,
+r010, r015 and the last good adapter, and three of them had not been scored.
+Nothing was trained or scored on Q-HumanEval in between. Rounds 1 to 10 are
+intact: no collapse stop, degenerate output at most 0.2%, rollout loop rate
+90.0% to 69.0%, rollout full-pass rate 55.4% to 58.8%.
+
+*What changes.* Both evaluators retry a failed request twice, then fall back to
+one sample per request. A sample that still fails is scored as wrong, and the
+count is reported as `server_errors`. The chain re-runs a missing round-5/10/15
+check on resume, and writes `out/rl3/DONE` only on completion. Selection refuses
+to run without that file. The chain resumes at the round 10 check, then rounds
+11 to 15, and selection follows unchanged. The rule, thresholds and candidates
+in amendment 16 do not change. Cost: ~13.5 hours idle.
+
 ## Results
 
 **Gate C — met, 2026-10-03, by round 4** (`qwen3.5-27b-r4`: round 3 merged,

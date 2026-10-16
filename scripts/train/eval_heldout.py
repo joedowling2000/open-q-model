@@ -20,6 +20,7 @@ import json
 import random
 import re
 import sys
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -33,7 +34,10 @@ from assemble_sft import desc2q  # noqa: E402
 SEEDS = range(600000, 600060)
 
 
-def complete(url: str, model: str, prompt: str, n: int, max_tokens: int) -> list[str]:
+SERVER_ERRORS = [0]     # incident 8: samples lost to server errors, scored as wrong
+
+
+def _request(url: str, model: str, prompt: str, n: int, max_tokens: int) -> list[str]:
     body = json.dumps({"model": model, "n": n, "temperature": 0.8,
                        "max_tokens": max_tokens,
                        "messages": [{"role": "user", "content": prompt}]}).encode()
@@ -41,6 +45,25 @@ def complete(url: str, model: str, prompt: str, n: int, max_tokens: int) -> list
                                  {"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=7200) as r:
         return [c["message"]["content"] for c in json.load(r)["choices"]]
+
+
+def complete(url: str, model: str, prompt: str, n: int, max_tokens: int) -> list[str]:
+    """Incident 8: one HTTP 500 used to abort the whole evaluation. Retry the
+    request twice; then fall back to one sample per request, and score a
+    sample that still fails as wrong (counted in the summary)."""
+    for _ in range(2):
+        try:
+            return _request(url, model, prompt, n, max_tokens)
+        except urllib.error.HTTPError:
+            continue
+    out = []
+    for _ in range(n):
+        try:
+            out += _request(url, model, prompt, 1, max_tokens)
+        except urllib.error.HTTPError:
+            SERVER_ERRORS[0] += 1
+            out.append("")
+    return out
 
 
 def extract(text: str) -> str:
@@ -86,6 +109,7 @@ def main() -> int:
     summary = {"model": args.model, "n_questions": len(rows), "n_samples": args.n,
                "pass_at_1_clean": pass1(clean) if clean else None, "n_clean": len(clean),
                "pass_at_1": pass1(rows), "ci95": [boots[250], boots[9750]],
+               "server_errors": SERVER_ERRORS[0],
                "by_difficulty": {d: pass1([r for r in rows if r["difficulty"] == d])
                                  for d in ("medium", "hard")}}
     Path(args.out).write_text(json.dumps({"summary": summary, "rows": rows}, indent=1))

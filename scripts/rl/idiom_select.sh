@@ -14,6 +14,8 @@ export QHOME=$HOME/.kx QLIC=$HOME/.kx
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 die() { log "$*"; exit 1; }
 while systemctl --user list-units 'run-qrl3*' --no-legend | grep -q .; do sleep 600; done
+# Incident 8: the chain must have finished; a crashed chain is not a result.
+[ -f out/rl3/DONE ] || die "rl3 chain did not finish (no out/rl3/DONE); not selecting"
 LAST=$(cat out/rl3/LAST_GOOD 2>/dev/null || echo none)
 CHOICE=$(python3 - out/rl3/r005 out/rl3/r010 out/rl3/r015 "$LAST" <<'PY' | tee results/idiom_candidates.txt | tail -1
 import json, re, sys

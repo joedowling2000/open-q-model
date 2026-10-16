@@ -16,7 +16,7 @@ export QHOME=$HOME/.kx QLIC=$HOME/.kx
 RUN=rl3; START_ADAPTER=out/rl/r011; START=${START:-1}; END=${END:-15}; PENALTY=${PENALTY:-0.5}
 E="taskset -c 0-4,10-14"
 log() { echo "[$(date +%H:%M:%S)] $*"; }
-die() { log "$*"; exit 1; }
+die() { log "$*"; [ -n "${SERVER:-}" ] && kill $SERVER 2>/dev/null; exit 1; }
 adapter() { printf "out/$RUN/r%03d" "$1"; }
 serve() {
   [ -f "$1/adapter.gguf" ] || $PY scripts/train/convert_lora.py "$1" --base out/merged/qwen3.5-27b-r4 \
@@ -46,7 +46,11 @@ mkdir -p out/$RUN corpus/$RUN
   kill $SERVER; wait $SERVER 2>/dev/null; sleep 10; grep STYLE_RESULT logs/rl3-style-r011.log; }
 for R in $(seq $START $END); do
   PREV=$(adapter $((R - 1))); [ -d "$PREV" ] || PREV=$START_ADAPTER
-  [ -d "$(adapter $R)" ] && continue                          # resumable
+  if [ -d "$(adapter $R)" ]; then                             # resumable
+    T=rl3-r$(printf %03d $R)                                  # incident 8: redo a check that failed
+    [ $((R % 5)) -eq 0 ] && [ ! -f results/style-$T.json ] && { log "held-out + style check: $(adapter $R)"; evaluate "$(adapter $R)" "$T"; }
+    continue
+  fi
   log "round $R: rollouts with policy $PREV (loop penalty $PENALTY)"
   serve "$PREV"
   $E $QPY scripts/rl/rollout.py --url http://127.0.0.1:8107/v1 --model policy --round $R --run $RUN \
@@ -69,4 +73,5 @@ done
 LAST=$(cat out/$RUN/LAST_GOOD 2>/dev/null || echo $START_ADAPTER)
 T=$(echo "$LAST" | sed 's|out/||; s|/|-|g')
 [ "$LAST" != "$START_ADAPTER" ] && [ ! -f results/style-$T.json ] && { log "held-out + style check: $LAST"; evaluate "$LAST" "$T"; }
+touch out/$RUN/DONE                                           # idiom_select.sh runs only after this
 log "RL3_DONE rounds $START-$END; last good $LAST"
